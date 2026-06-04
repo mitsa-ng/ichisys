@@ -44,6 +44,7 @@ const grades = computed(() => pool.value?.prize_grades ?? [])
 const paymentMethods = computed(() => (pool.value?.payment_methods || '').split(',').filter(Boolean))
 
 const methodLabels = { onsite: '現場付款', linepay: 'LinePay' }
+const linepayDisabled = true
 
 onMounted(async () => {
   await loadPool()
@@ -254,12 +255,20 @@ function closeResult() {
           <div class="space-y-3 mb-6">
             <label v-for="m in paymentMethods" :key="m"
               class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer"
-              :class="selectedMethod === m ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200'"
+              :class="[
+                selectedMethod === m ? 'border-indigo-500 bg-indigo-50' : 'border-gray-200',
+                m === 'linepay' ? 'opacity-50' : '',
+              ]"
             >
-              <input v-model="selectedMethod" :value="m" type="radio" class="accent-indigo-600" />
+              <input v-model="selectedMethod" :value="m" type="radio"
+                :disabled="m === 'linepay'"
+                class="accent-indigo-600" />
               <div>
-                <div class="text-sm font-medium text-gray-900">{{ methodLabels[m] || m }}</div>
-                <div class="text-xs text-gray-400">{{ m === 'linepay' ? '模擬線上付款' : '到店付款' }}</div>
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium" :class="m === 'linepay' ? 'text-gray-400' : 'text-gray-900'">{{ methodLabels[m] || m }}</span>
+                  <span v-if="m === 'linepay'" class="text-xs bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded">暫不開放</span>
+                </div>
+                <div class="text-xs" :class="m === 'linepay' ? 'text-gray-300' : 'text-gray-400'">{{ m === 'linepay' ? '模擬線上付款' : '到店付款' }}</div>
               </div>
             </label>
           </div>

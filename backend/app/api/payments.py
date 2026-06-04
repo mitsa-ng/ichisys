@@ -2,23 +2,41 @@ import io
 from datetime import datetime, timezone
 
 import qrcode
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
+from app.models.admin import Admin
 from app.models.payment import Payment
 from app.models.pool import Pool
 from app.schemas.payment import PaymentCreate, PaymentListResponse, PaymentResponse
+from app.services.auth import decode_access_token
 from app.services.events import broadcast
 
 router = APIRouter(prefix="/api/payments", tags=["payments"])
 
 
 @router.post("", response_model=PaymentResponse, status_code=status.HTTP_201_CREATED)
-async def create_payment(body: PaymentCreate, db: AsyncSession = Depends(get_db)):
+async def create_payment(
+    body: PaymentCreate,
+    db: AsyncSession = Depends(get_db),
+    authorization: str = Header(None),
+):
+    if body.method == "linepay":
+        if not authorization:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+        token = authorization.replace("Bearer ", "")
+        payload = decode_access_token(token)
+        if not payload:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        admin_result = await db.execute(select(Admin).where(Admin.id == payload.get("sub")))
+        admin = admin_result.scalar_one_or_none()
+        if not admin or not admin.is_otp_enabled:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin 2FA authentication required")
+
     result = await db.execute(select(Pool).where(Pool.id == body.pool_id))
     pool = result.scalar_one_or_none()
     if not pool:
