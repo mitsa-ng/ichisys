@@ -33,6 +33,15 @@ async function loadAdmin() {
   } catch (_) {}
 }
 
+async function verifyAuth() {
+  try {
+    const res = await api.get('/api/auth/me')
+    admin.value = res.data
+  } catch (_) {
+    router.push('/admin/login')
+  }
+}
+
 onMounted(async () => {
   try {
     const [adminRes, poolsRes] = await Promise.all([
@@ -57,6 +66,19 @@ onMounted(async () => {
       }
     } catch (_) {}
   }
+
+  window.addEventListener('pageshow', onPageShow)
+})
+
+function onPageShow(event) {
+  if (event.persisted) {
+    verifyAuth()
+  }
+}
+
+onUnmounted(() => {
+  if (eventSource) eventSource.close()
+  window.removeEventListener('pageshow', onPageShow)
 })
 
 onUnmounted(() => {

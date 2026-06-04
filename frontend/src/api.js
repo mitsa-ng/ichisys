@@ -12,6 +12,17 @@ api.interceptors.request.use((config) => {
   return config
 })
 
+api.interceptors.response.use(
+  res => res,
+  err => {
+    if (err.response?.status === 401 && !err.config.url?.includes('/auth/')) {
+      localStorage.removeItem('admin_token')
+      window.location.href = '/admin/login'
+    }
+    return Promise.reject(err)
+  }
+)
+
 export function setAdminToken(token) {
   if (token) {
     localStorage.setItem('admin_token', token)
