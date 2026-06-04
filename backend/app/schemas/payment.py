@@ -21,6 +21,7 @@ class PaymentResponse(BaseModel):
     serial_numbers: Optional[str] = None
     created_at: datetime
     confirmed_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -43,3 +44,4 @@ class PaymentListResponse(BaseModel):
     ticket_count: int = 0
     created_at: datetime
     confirmed_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None

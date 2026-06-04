@@ -11,7 +11,6 @@ const router = useRouter()
         <a href="/" class="text-lg font-bold text-gray-800">一番賞</a>
         <nav class="flex gap-4 text-sm">
           <a href="/" class="text-gray-600 hover:text-gray-900">獎池列表</a>
-          <a href="/admin/login" class="text-gray-600 hover:text-gray-900">管理後台</a>
         </nav>
       </div>
     </header>

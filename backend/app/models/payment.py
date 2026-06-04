@@ -21,3 +21,4 @@ class Payment(Base):
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )
     confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)

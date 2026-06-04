@@ -11,6 +11,8 @@ const admin = ref(null)
 const loading = ref(true)
 const activeTab = ref('pools')
 let eventSource = null
+let idleStart = null
+const IDLE_THRESHOLD = 30000
 
 // 2FA state
 const otpQrCode = ref('')
@@ -39,6 +41,22 @@ async function verifyAuth() {
     admin.value = res.data
   } catch (_) {
     router.push('/admin/login')
+  } finally {
+    loading.value = false
+  }
+}
+
+function onVisibilityChange() {
+  if (document.hidden) {
+    idleStart = Date.now()
+  } else if (idleStart) {
+    const elapsed = Date.now() - idleStart
+    idleStart = null
+    if (elapsed > IDLE_THRESHOLD) {
+      loading.value = true
+      admin.value = null
+      verifyAuth()
+    }
   }
 }
 
@@ -56,7 +74,7 @@ onMounted(async () => {
     loading.value = false
   }
 
-  eventSource = new EventSource('http://localhost:8000/api/events')
+  eventSource = new EventSource('/api/events')
   eventSource.onmessage = (e) => {
     if (!e.data) return
     try {
@@ -68,10 +86,13 @@ onMounted(async () => {
   }
 
   window.addEventListener('pageshow', onPageShow)
+  document.addEventListener('visibilitychange', onVisibilityChange)
 })
 
 function onPageShow(event) {
   if (event.persisted) {
+    loading.value = true
+    admin.value = null
     verifyAuth()
   }
 }
@@ -79,10 +100,7 @@ function onPageShow(event) {
 onUnmounted(() => {
   if (eventSource) eventSource.close()
   window.removeEventListener('pageshow', onPageShow)
-})
-
-onUnmounted(() => {
-  if (eventSource) eventSource.close()
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 
 function logout() {

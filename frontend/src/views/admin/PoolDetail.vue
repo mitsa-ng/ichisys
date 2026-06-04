@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import api from '../../api'
 
@@ -7,6 +7,42 @@ const route = useRoute()
 const router = useRouter()
 const pool = ref(null)
 const loading = ref(true)
+let idleStart = null
+const IDLE_THRESHOLD = 30000
+
+async function verifyAuth() {
+  try {
+    await api.get('/api/auth/me')
+    const res = await api.get(`/api/pools/${route.params.id}`)
+    pool.value = res.data
+  } catch (_) {
+    router.push('/admin')
+  } finally {
+    loading.value = false
+  }
+}
+
+function onPageShow(event) {
+  if (event.persisted) {
+    loading.value = true
+    pool.value = null
+    verifyAuth()
+  }
+}
+
+function onVisibilityChange() {
+  if (document.hidden) {
+    idleStart = Date.now()
+  } else if (idleStart) {
+    const elapsed = Date.now() - idleStart
+    idleStart = null
+    if (elapsed > IDLE_THRESHOLD) {
+      loading.value = true
+      pool.value = null
+      verifyAuth()
+    }
+  }
+}
 const editing = ref(false)
 const saving = ref(false)
 
@@ -25,6 +61,11 @@ const editForm = ref({
 
 const error = ref('')
 
+onMounted(() => {
+  window.addEventListener('pageshow', onPageShow)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
 onMounted(async () => {
   try {
     const res = await api.get(`/api/pools/${route.params.id}`)
@@ -34,6 +75,11 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+onUnmounted(() => {
+  window.removeEventListener('pageshow', onPageShow)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 
 function startEdit() {

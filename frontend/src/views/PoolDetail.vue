@@ -50,7 +50,7 @@ onMounted(async () => {
   await loadPool()
   loading.value = false
 
-  eventSource = new EventSource('http://localhost:8000/api/events')
+  eventSource = new EventSource('/api/events')
   eventSource.onmessage = (e) => {
     if (!e.data) return
     try {
@@ -292,7 +292,7 @@ function closeResult() {
           <h3 class="text-lg font-bold text-gray-900 mb-4">請至櫃檯付款</h3>
           <p class="text-sm text-gray-500 mb-4">請出示以下條碼給店員掃描</p>
           <img
-            :src="`http://localhost:8000/api/payments/qrcode/${payment.id}`"
+            :src="`/api/payments/qrcode/${payment.id}`"
             class="mx-auto w-48 h-48 mb-4"
             alt="付款 QR Code"
           />

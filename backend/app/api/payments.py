@@ -59,6 +59,13 @@ async def create_payment(
     db.add(payment)
     await db.commit()
     await db.refresh(payment)
+
+    await broadcast("payment_created", {
+        "payment_id": payment.id,
+        "pool_id": payment.pool_id,
+        "user_id": payment.user_id,
+    })
+
     return PaymentResponse.model_validate(payment)
 
 
@@ -78,6 +85,30 @@ async def confirm_payment(payment_id: str, db: AsyncSession = Depends(get_db)):
     await db.refresh(payment)
 
     await broadcast("payment_confirmed", {
+        "payment_id": payment.id,
+        "pool_id": payment.pool_id,
+        "user_id": payment.user_id,
+    })
+
+    return PaymentResponse.model_validate(payment)
+
+
+@router.post("/{payment_id}/cancel", response_model=PaymentResponse)
+async def cancel_payment(payment_id: str, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Payment).where(Payment.id == payment_id))
+    payment = result.scalar_one_or_none()
+    if not payment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+
+    if payment.status != "pending":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment already processed")
+
+    payment.status = "cancelled"
+    payment.cancelled_at = datetime.now(timezone.utc)
+    await db.commit()
+    await db.refresh(payment)
+
+    await broadcast("payment_cancelled", {
         "payment_id": payment.id,
         "pool_id": payment.pool_id,
         "user_id": payment.user_id,

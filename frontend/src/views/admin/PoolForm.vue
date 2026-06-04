@@ -1,9 +1,43 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../api'
 
 const router = useRouter()
+
+const loading = ref(false)
+let idleStart = null
+const IDLE_THRESHOLD = 30000
+
+async function verifyAuth() {
+  try {
+    await api.get('/api/auth/me')
+  } catch (_) {
+    router.push('/admin/login')
+  } finally {
+    loading.value = false
+  }
+}
+
+function onPageShow(event) {
+  if (event.persisted) {
+    loading.value = true
+    verifyAuth()
+  }
+}
+
+function onVisibilityChange() {
+  if (document.hidden) {
+    idleStart = Date.now()
+  } else if (idleStart) {
+    const elapsed = Date.now() - idleStart
+    idleStart = null
+    if (elapsed > IDLE_THRESHOLD) {
+      loading.value = true
+      verifyAuth()
+    }
+  }
+}
 
 const form = ref({
   name: '',
@@ -71,10 +105,21 @@ function removeGrade(i) {
 }
 
 const totalTickets = ref(0)
+
+onMounted(() => {
+  window.addEventListener('pageshow', onPageShow)
+  document.addEventListener('visibilitychange', onVisibilityChange)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('pageshow', onPageShow)
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+})
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto">
+  <div v-if="loading" class="text-gray-500 text-center py-12">載入中...</div>
+  <div v-else class="max-w-3xl mx-auto">
     <h1 class="text-2xl font-bold text-gray-900 mb-6">新增獎池</h1>
     <div v-if="error" class="bg-red-50 text-red-600 text-sm p-3 rounded-lg mb-4">{{ error }}</div>
     <form @submit.prevent="submit" class="space-y-6">
