@@ -14,7 +14,7 @@ const submitting = ref(false)
 
 onMounted(async () => {
   try {
-    const res = await api.get('/api/setup/status')
+    const res = await api.get('/setup/status')
     if (!res.data.needs_setup) {
       router.push('/admin/login')
     }
@@ -31,7 +31,7 @@ async function submit() {
 
   submitting.value = true
   try {
-    await api.post('/api/setup/admin', {
+    await api.post('/setup/admin', {
       email: email.value,
       password: password.value,
       display_name: displayName.value,

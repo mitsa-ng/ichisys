@@ -13,7 +13,7 @@ const checking = ref(true)
 
 onMounted(async () => {
   try {
-    const res = await api.get('/api/setup/status')
+    const res = await api.get('/setup/status')
     if (res.data.needs_setup) {
       router.push('/admin/setup')
     }
@@ -24,7 +24,7 @@ onMounted(async () => {
 async function login() {
   error.value = ''
   try {
-    const res = await api.post('/api/auth/login', {
+    const res = await api.post('/auth/login', {
       email: email.value,
       password: password.value,
     })
@@ -42,7 +42,7 @@ async function login() {
 async function verifyOTP() {
   error.value = ''
   try {
-    const res = await api.post('/api/auth/verify-otp', {
+    const res = await api.post('/auth/verify-otp', {
       email: email.value,
       otp_code: otpCode.value,
     })

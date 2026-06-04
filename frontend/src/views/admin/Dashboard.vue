@@ -23,21 +23,21 @@ const otpLoading = ref(false)
 
 async function loadPools() {
   try {
-    const res = await api.get('/api/pools')
+    const res = await api.get('/pools')
     pools.value = res.data
   } catch (_) {}
 }
 
 async function loadAdmin() {
   try {
-    const res = await api.get('/api/auth/me')
+    const res = await api.get('/auth/me')
     admin.value = res.data
   } catch (_) {}
 }
 
 async function verifyAuth() {
   try {
-    const res = await api.get('/api/auth/me')
+    const res = await api.get('/auth/me')
     admin.value = res.data
   } catch (_) {
     router.push('/admin/login')
@@ -63,8 +63,8 @@ function onVisibilityChange() {
 onMounted(async () => {
   try {
     const [adminRes, poolsRes] = await Promise.all([
-      api.get('/api/auth/me'),
-      api.get('/api/pools'),
+      api.get('/auth/me'),
+      api.get('/pools'),
     ])
     admin.value = adminRes.data
     pools.value = poolsRes.data
@@ -111,7 +111,7 @@ function logout() {
 async function deletePool(id, name) {
   if (!confirm(`確定要刪除獎池「${name}」？此操作不可恢復。`)) return
   try {
-    await api.delete(`/api/pools/${id}`)
+    await api.delete(`/pools/${id}`)
     pools.value = pools.value.filter(p => p.id !== id)
   } catch (e) {
     alert(e.response?.data?.detail || '刪除失敗')
@@ -122,7 +122,7 @@ async function setupOTP() {
   otpError.value = ''
   otpLoading.value = true
   try {
-    const res = await api.post('/api/auth/setup-otp')
+    const res = await api.post('/auth/setup-otp')
     otpQrCode.value = res.data.qr_code
     otpSecret.value = res.data.otp_secret
     otpCode.value = ''
@@ -138,7 +138,7 @@ async function confirmOTP() {
   if (!otpCode.value) { otpError.value = '請輸入驗證碼'; return }
   otpLoading.value = true
   try {
-    const res = await api.post('/api/auth/confirm-otp', { otp_code: otpCode.value })
+    const res = await api.post('/auth/confirm-otp', { otp_code: otpCode.value })
     admin.value = res.data
     otpQrCode.value = ''
     otpSecret.value = ''
@@ -154,7 +154,7 @@ async function disableOTP() {
   if (!confirm('確定要停用兩步驟驗證？')) return
   otpLoading.value = true
   try {
-    const res = await api.post('/api/auth/disable-otp')
+    const res = await api.post('/auth/disable-otp')
     admin.value = res.data
   } catch (e) {
     alert(e.response?.data?.detail || '停用失敗')

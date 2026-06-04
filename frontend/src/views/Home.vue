@@ -7,7 +7,7 @@ const loading = ref(true)
 
 onMounted(async () => {
   try {
-    const res = await api.get('/api/pools?status_filter=published')
+    const res = await api.get('/pools?status_filter=published')
     pools.value = res.data
   } catch (e) {
     console.error(e)

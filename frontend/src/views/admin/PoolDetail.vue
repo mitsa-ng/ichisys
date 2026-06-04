@@ -12,8 +12,8 @@ const IDLE_THRESHOLD = 30000
 
 async function verifyAuth() {
   try {
-    await api.get('/api/auth/me')
-    const res = await api.get(`/api/pools/${route.params.id}`)
+    await api.get('/auth/me')
+    const res = await api.get(`/pools/${route.params.id}`)
     pool.value = res.data
   } catch (_) {
     router.push('/admin')
@@ -68,7 +68,7 @@ onMounted(() => {
 
 onMounted(async () => {
   try {
-    const res = await api.get(`/api/pools/${route.params.id}`)
+    const res = await api.get(`/pools/${route.params.id}`)
     pool.value = res.data
   } catch (e) {
     router.push('/admin')
@@ -141,7 +141,7 @@ async function saveEdit() {
     if (pool.value.status !== 'draft') {
       delete payload.prize_grades
     }
-    const res = await api.patch(`/api/pools/${route.params.id}`, payload)
+    const res = await api.patch(`/pools/${route.params.id}`, payload)
     pool.value = res.data
     editing.value = false
   } catch (e) {
@@ -154,7 +154,7 @@ async function saveEdit() {
 async function deletePool() {
   if (!confirm('確定要刪除此獎池？此操作不可恢復。')) return
   try {
-    await api.delete(`/api/pools/${route.params.id}`)
+    await api.delete(`/pools/${route.params.id}`)
     router.push('/admin')
   } catch (e) {
     alert(e.response?.data?.detail || '刪除失敗')
@@ -164,8 +164,8 @@ async function deletePool() {
 async function publishPool() {
   if (!confirm('確定要上架此獎池？將自動進行洗牌並開放抽獎。')) return
   try {
-    await api.post(`/api/pools/${route.params.id}/publish`)
-    const res = await api.get(`/api/pools/${route.params.id}`)
+    await api.post(`/pools/${route.params.id}/publish`)
+    const res = await api.get(`/pools/${route.params.id}`)
     pool.value = res.data
   } catch (e) {
     alert(e.response?.data?.detail || '上架失敗')
@@ -175,8 +175,8 @@ async function publishPool() {
 async function shufflePool() {
   if (!confirm('確定要重新洗牌？這將重置所有抽獎券。')) return
   try {
-    await api.post(`/api/pools/${route.params.id}/shuffle`)
-    const res = await api.get(`/api/pools/${route.params.id}`)
+    await api.post(`/pools/${route.params.id}/shuffle`)
+    const res = await api.get(`/pools/${route.params.id}`)
     pool.value = res.data
   } catch (e) {
     alert(e.response?.data?.detail || '洗牌失敗')

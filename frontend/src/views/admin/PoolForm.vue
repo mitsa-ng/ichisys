@@ -11,7 +11,7 @@ const IDLE_THRESHOLD = 30000
 
 async function verifyAuth() {
   try {
-    await api.get('/api/auth/me')
+    await api.get('/auth/me')
   } catch (_) {
     router.push('/admin/login')
   } finally {
@@ -79,7 +79,7 @@ async function submit() {
   }
   try {
     const payload = { ...form.value, payment_methods: form.value.payment_methods.join(',') }
-    const res = await api.post('/api/pools', payload)
+    const res = await api.post('/pools', payload)
     router.push(`/admin/pools/${res.data.id}`)
   } catch (e) {
     error.value = formatError(e)

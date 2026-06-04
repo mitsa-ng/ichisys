@@ -19,7 +19,7 @@ async function loadDrawRecords() {
   try {
     const params = {}
     if (filterPoolId.value) params.pool_id = filterPoolId.value
-    const res = await api.get('/api/admin/draws', { params })
+    const res = await api.get('/admin/draws', { params })
     records.value = res.data
   } catch (_) {}
   finally { loading.value = false }
@@ -27,7 +27,7 @@ async function loadDrawRecords() {
 
 async function loadPools() {
   try {
-    const res = await api.get('/api/pools')
+    const res = await api.get('/pools')
     pools.value = res.data
   } catch (_) {}
 }

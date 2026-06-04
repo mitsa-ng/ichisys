@@ -25,8 +25,8 @@ if (!localStorage.getItem('user_id')) {
 async function loadPool() {
   try {
     const [poolRes, ticketRes] = await Promise.all([
-      api.get(`/api/pools/${route.params.id}`),
-      api.get(`/api/pools/${route.params.id}/tickets`),
+      api.get(`/pools/${route.params.id}`),
+      api.get(`/pools/${route.params.id}/tickets`),
     ])
     pool.value = poolRes.data
     tickets.value = ticketRes.data
@@ -114,7 +114,7 @@ function cancelPayment() {
 
 async function doDraw() {
   try {
-    const res = await api.post(`/api/pools/${route.params.id}/draw`, {
+    const res = await api.post(`/pools/${route.params.id}/draw`, {
       user_id: userId.value,
       serial_numbers: selectedNumbers.value,
       payment_id: payment.value.id,
@@ -126,8 +126,8 @@ async function doDraw() {
     waitingPayment.value = false
 
     const [poolRes, ticketRes] = await Promise.all([
-      api.get(`/api/pools/${route.params.id}`),
-      api.get(`/api/pools/${route.params.id}/tickets`),
+      api.get(`/pools/${route.params.id}`),
+      api.get(`/pools/${route.params.id}/tickets`),
     ])
     pool.value = poolRes.data
     tickets.value = ticketRes.data
@@ -140,7 +140,7 @@ async function confirmPayment() {
   error.value = ''
   drawing.value = true
   try {
-    const payRes = await api.post('/api/payments', {
+    const payRes = await api.post('/payments', {
       pool_id: route.params.id,
       user_id: userId.value,
       serial_numbers: selectedNumbers.value,
@@ -149,8 +149,8 @@ async function confirmPayment() {
     payment.value = payRes.data
 
     if (selectedMethod.value === 'linepay') {
-      await api.post(`/api/payments/${payRes.data.id}/confirm`)
-      const confirmRes = await api.get(`/api/payments/${payRes.data.id}`)
+      await api.post(`/payments/${payRes.data.id}/confirm`)
+      const confirmRes = await api.get(`/payments/${payRes.data.id}`)
       payment.value = confirmRes.data
       drawing.value = false
       await doDraw()
@@ -292,7 +292,7 @@ function closeResult() {
           <h3 class="text-lg font-bold text-gray-900 mb-4">請至櫃檯付款</h3>
           <p class="text-sm text-gray-500 mb-4">請出示以下條碼給店員掃描</p>
           <img
-            :src="`/api/payments/qrcode/${payment.id}`"
+            :src="`/payments/qrcode/${payment.id}`"
             class="mx-auto w-48 h-48 mb-4"
             alt="付款 QR Code"
           />

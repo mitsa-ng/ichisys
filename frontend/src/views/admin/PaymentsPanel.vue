@@ -15,7 +15,7 @@ let eventSource = null
 async function loadPayments() {
   loading.value = true
   try {
-    const res = await api.get('/api/payments/list', { params: { status: 'pending' } })
+    const res = await api.get('/payments/list', { params: { status: 'pending' } })
     payments.value = res.data
   } catch (_) {}
   finally { loading.value = false }
@@ -25,7 +25,7 @@ async function confirmPayment(id) {
   if (!confirm('確定要確認此筆付款？')) return
   processLoading.value = true
   try {
-    await api.post(`/api/payments/${id}/confirm`)
+    await api.post(`/payments/${id}/confirm`)
     payments.value = payments.value.filter(p => p.id !== id)
   } catch (e) {
     alert(e.response?.data?.detail || '確認失敗')
@@ -37,7 +37,7 @@ async function cancelPayment(id) {
   if (!confirm('確定要取消此筆訂單？')) return
   processLoading.value = true
   try {
-    await api.post(`/api/payments/${id}/cancel`)
+    await api.post(`/payments/${id}/cancel`)
     payments.value = payments.value.filter(p => p.id !== id)
   } catch (e) {
     alert(e.response?.data?.detail || '取消失敗')

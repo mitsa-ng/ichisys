@@ -9,7 +9,7 @@ const loading = ref(true)
 
 onMounted(async () => {
   try {
-    const res = await api.get(`/api/warehouse/${route.params.userId}`)
+    const res = await api.get(`/warehouse/${route.params.userId}`)
     items.value = res.data
   } catch (e) {
     console.error(e)
