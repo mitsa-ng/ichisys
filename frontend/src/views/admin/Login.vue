@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api, { setAdminToken } from '../../api'
 
@@ -9,6 +9,17 @@ const password = ref('')
 const otpCode = ref('')
 const showOTP = ref(false)
 const error = ref('')
+const checking = ref(true)
+
+onMounted(async () => {
+  try {
+    const res = await api.get('/api/setup/status')
+    if (res.data.needs_setup) {
+      router.push('/admin/setup')
+    }
+  } catch (_) {}
+  finally { checking.value = false }
+})
 
 async function login() {
   error.value = ''
@@ -44,7 +55,8 @@ async function verifyOTP() {
 </script>
 
 <template>
-  <div class="max-w-sm mx-auto mt-16">
+  <div v-if="checking" class="text-gray-500 text-center mt-16">檢查系統狀態...</div>
+  <div v-else class="max-w-sm mx-auto mt-16">
     <h1 class="text-2xl font-bold text-gray-900 text-center mb-6">管理員登入</h1>
     <div class="bg-white rounded-xl shadow-sm border p-6">
       <div v-if="error" class="bg-red-50 text-red-600 text-sm p-3 rounded-lg mb-4">{{ error }}</div>

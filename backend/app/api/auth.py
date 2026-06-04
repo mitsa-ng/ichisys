@@ -79,6 +79,18 @@ async def confirm_otp(
     return AdminResponse.model_validate(admin)
 
 
+@router.post("/disable-otp", response_model=AdminResponse)
+async def disable_otp(
+    admin: Admin = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    admin.otp_secret = None
+    admin.is_otp_enabled = False
+    await db.commit()
+    await db.refresh(admin)
+    return AdminResponse.model_validate(admin)
+
+
 @router.get("/me", response_model=AdminResponse)
 async def get_me(admin: Admin = Depends(get_current_admin)):
     return AdminResponse.model_validate(admin)

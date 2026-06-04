@@ -12,10 +12,24 @@ const loading = ref(true)
 const activeTab = ref('pools')
 let eventSource = null
 
+// 2FA state
+const otpQrCode = ref('')
+const otpSecret = ref('')
+const otpCode = ref('')
+const otpError = ref('')
+const otpLoading = ref(false)
+
 async function loadPools() {
   try {
     const res = await api.get('/api/pools')
     pools.value = res.data
+  } catch (_) {}
+}
+
+async function loadAdmin() {
+  try {
+    const res = await api.get('/api/auth/me')
+    admin.value = res.data
   } catch (_) {}
 }
 
@@ -63,6 +77,51 @@ async function deletePool(id, name) {
     alert(e.response?.data?.detail || '刪除失敗')
   }
 }
+
+async function setupOTP() {
+  otpError.value = ''
+  otpLoading.value = true
+  try {
+    const res = await api.post('/api/auth/setup-otp')
+    otpQrCode.value = res.data.qr_code
+    otpSecret.value = res.data.otp_secret
+    otpCode.value = ''
+  } catch (e) {
+    otpError.value = e.response?.data?.detail || '設定失敗'
+  } finally {
+    otpLoading.value = false
+  }
+}
+
+async function confirmOTP() {
+  otpError.value = ''
+  if (!otpCode.value) { otpError.value = '請輸入驗證碼'; return }
+  otpLoading.value = true
+  try {
+    const res = await api.post('/api/auth/confirm-otp', { otp_code: otpCode.value })
+    admin.value = res.data
+    otpQrCode.value = ''
+    otpSecret.value = ''
+    otpCode.value = ''
+  } catch (e) {
+    otpError.value = e.response?.data?.detail || '驗證失敗'
+  } finally {
+    otpLoading.value = false
+  }
+}
+
+async function disableOTP() {
+  if (!confirm('確定要停用兩步驟驗證？')) return
+  otpLoading.value = true
+  try {
+    const res = await api.post('/api/auth/disable-otp')
+    admin.value = res.data
+  } catch (e) {
+    alert(e.response?.data?.detail || '停用失敗')
+  } finally {
+    otpLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -90,6 +149,11 @@ async function deletePool(id, name) {
         class="pb-3 px-1 text-sm font-medium border-b-2 transition"
         :class="activeTab === 'draws' ? 'text-indigo-600 border-indigo-600' : 'text-gray-500 border-transparent hover:text-gray-700'">
         抽獎紀錄
+      </button>
+      <button @click="activeTab = 'security'"
+        class="pb-3 px-1 text-sm font-medium border-b-2 transition"
+        :class="activeTab === 'security' ? 'text-indigo-600 border-indigo-600' : 'text-gray-500 border-transparent hover:text-gray-700'">
+        安全設定
       </button>
     </div>
 
@@ -147,6 +211,53 @@ async function deletePool(id, name) {
 
     <div v-if="activeTab === 'draws'">
       <DrawRecords />
+    </div>
+
+    <div v-if="activeTab === 'security'">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">安全設定</h2>
+
+      <div class="bg-white rounded-xl shadow-sm border p-6 max-w-lg">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <div class="text-sm font-medium text-gray-900">兩步驟驗證 (2FA)</div>
+            <div class="text-xs text-gray-500 mt-1">使用 Google Authenticator 等 TOTP 應用程式</div>
+          </div>
+          <span v-if="admin?.is_otp_enabled"
+            class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">已啟用</span>
+          <span v-else
+            class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">未啟用</span>
+        </div>
+
+        <div v-if="!admin?.is_otp_enabled && !otpQrCode">
+          <button @click="setupOTP" :disabled="otpLoading"
+            class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50">
+            {{ otpLoading ? '處理中...' : '啟用兩步驟驗證' }}
+          </button>
+        </div>
+
+        <div v-if="otpQrCode" class="border-t pt-4 mt-4">
+          <p class="text-sm text-gray-700 mb-3">請使用 Google Authenticator 掃描以下 QR Code</p>
+          <div v-html="otpQrCode" class="mb-3 w-48 h-48 mx-auto"></div>
+          <p class="text-xs text-gray-400 text-center mb-3">或手動輸入密鑰：<code class="font-mono bg-gray-100 px-1">{{ otpSecret }}</code></p>
+          <div v-if="otpError" class="bg-red-50 text-red-600 text-sm p-2 rounded-lg mb-3">{{ otpError }}</div>
+          <div class="flex gap-2">
+            <input v-model="otpCode" type="text" placeholder="輸入驗證碼"
+              class="flex-1 border rounded-lg px-3 py-2 text-sm text-center tracking-widest" />
+            <button @click="confirmOTP" :disabled="otpLoading"
+              class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
+              驗證
+            </button>
+          </div>
+        </div>
+
+        <div v-if="admin?.is_otp_enabled" class="border-t pt-4 mt-4">
+          <p class="text-sm text-gray-500 mb-3">已啟用兩步驟驗證，登入時需額外輸入 Google Authenticator 驗證碼。</p>
+          <button @click="disableOTP" :disabled="otpLoading"
+            class="bg-red-100 text-red-700 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-200 disabled:opacity-50">
+            停用兩步驟驗證
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>

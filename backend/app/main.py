@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.api import admin, auth, pools, draw, warehouse, payments, events
+from app.api import admin, auth, pools, draw, warehouse, payments, events, setup
 
 
 @asynccontextmanager
@@ -25,6 +25,7 @@ app.add_middleware(
 )
 
 app.include_router(admin.router)
+app.include_router(setup.router)
 app.include_router(auth.router)
 app.include_router(pools.router)
 app.include_router(draw.router)
