@@ -2,6 +2,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '../../api'
+import ImageUploader from '../../components/ImageUploader.vue'
 
 const router = useRouter()
 
@@ -131,8 +132,7 @@ onUnmounted(() => {
             <input v-model="form.name" required class="w-full border rounded-lg px-3 py-2 text-sm" />
           </div>
           <div class="col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-1">橫幅圖片網址</label>
-            <input v-model="form.banner_image" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="https://..." />
+            <ImageUploader v-model="form.banner_image" label="橫幅圖片" />
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">單抽售價</label>
@@ -188,8 +188,7 @@ onUnmounted(() => {
               <input v-model.number="g.market_price" type="number" class="w-full border rounded-lg px-2 py-1.5 text-sm" />
             </div>
             <div class="col-span-2 md:col-span-4">
-              <label class="block text-xs text-gray-500 mb-1">獎賞圖片網址（可選）</label>
-              <input v-model="g.image_url" class="w-full border rounded-lg px-2 py-1.5 text-sm" placeholder="https://..." />
+              <ImageUploader v-model="g.image_url" label="獎賞圖片（可選）" />
             </div>
           </div>
         </div>

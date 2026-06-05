@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     jwt_expire_minutes: int = 60
     admin_email: str = "admin@ichiban.com"
     admin_password: str = "admin123"
+    cloudinary_cloud_name: str = ""
+    cloudinary_api_key: str = ""
+    cloudinary_api_secret: str = ""
     site_url: str = "http://localhost:8000"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 

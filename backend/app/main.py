@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import init_db
-from app.api import admin, auth, pools, draw, warehouse, payments, events, setup
+from app.api import admin, auth, pools, draw, warehouse, payments, events, setup, upload
 
 
 @asynccontextmanager
@@ -32,6 +32,7 @@ app.include_router(draw.router)
 app.include_router(warehouse.router)
 app.include_router(payments.router)
 app.include_router(events.router)
+app.include_router(upload.router)
 
 
 @app.get("/api/health")
