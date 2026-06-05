@@ -1,15 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
-import sys
-from pathlib import Path
+import os
 
 block_cipher = None
 
-# Ensure app modules are found
-BASE_DIR = Path(__file__).parent
+# Run from backend/ directory; use cwd to locate app package
+BASE_DIR = os.getcwd()
 
 a = Analysis(
     ['run.py'],
-    pathex=[str(BASE_DIR)],
+    pathex=[BASE_DIR],
     binaries=[],
     datas=[],
     hiddenimports=[
@@ -48,6 +47,17 @@ a = Analysis(
         'aiosqlite',
         'qrcode',
         'pyotp',
+        'uvicorn',
+        'uvicorn.logging',
+        'uvicorn.loops',
+        'uvicorn.loops.auto',
+        'uvicorn.protocols',
+        'uvicorn.protocols.http',
+        'uvicorn.protocols.http.auto',
+        'uvicorn.protocols.websockets',
+        'uvicorn.protocols.websockets.auto',
+        'uvicorn.middleware',
+        'uvicorn.middleware.wsgi',
     ],
     hookspath=[],
     hooksconfig={},
@@ -62,6 +72,7 @@ a = Analysis(
         'PIL.TiffImagePlugin',
         'test',
         'unittest',
+        'uvloop',
     ],
     noarchive=False,
     optimize=0,
@@ -80,7 +91,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=True,
@@ -99,7 +110,7 @@ dist_dir = COLLECT(
     a.zipfiles,
     a.datas,
     strip=False,
-    upx=True,
+    upx=False,
     upx_exclude=[],
     name='ichiban-server',
 )
