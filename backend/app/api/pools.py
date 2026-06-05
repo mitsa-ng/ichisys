@@ -17,6 +17,7 @@ from app.schemas.pool import (
     PoolUpdate,
     PoolUpdateWithGrades,
     PrizeGradeResponse,
+    PrizeGradeUpdate,
 )
 from app.services.auth import generate_grade_code, generate_pool_code
 from app.services.events import broadcast
@@ -183,6 +184,50 @@ async def update_pool(
             pool.total_tickets = total
             pool.remaining_tickets = total
         pool.prize_grades = new_grades
+
+    await db.commit()
+    await db.refresh(pool)
+    await broadcast("pool_update", {"pool_id": pool.id, "status": pool.status, "remaining_tickets": pool.remaining_tickets})
+    return PoolResponse.model_validate(pool)
+
+
+@router.patch("/{pool_id}/grades", response_model=PoolResponse)
+async def update_pool_grades(
+    pool_id: str,
+    body: list[PrizeGradeUpdate],
+    admin: Admin = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Pool).options(selectinload(Pool.prize_grades)).where(Pool.id == pool_id)
+    )
+    pool = result.scalar_one_or_none()
+    if not pool:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pool not found")
+
+    existing_map = {g.id: g for g in pool.prize_grades}
+
+    for update in body:
+        grade = existing_map.get(update.id)
+        if not grade:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Prize grade {update.id} not found",
+            )
+        if update.grade_name is not None:
+            grade.grade_name = update.grade_name
+        if update.item_name is not None:
+            grade.item_name = update.item_name
+        if update.item_type is not None:
+            grade.item_type = update.item_type
+        if update.image_url is not None:
+            grade.image_url = update.image_url
+        if update.cost is not None:
+            grade.cost = update.cost
+        if update.market_price is not None:
+            grade.market_price = update.market_price
+        if update.sort_order is not None:
+            grade.sort_order = update.sort_order
 
     await db.commit()
     await db.refresh(pool)

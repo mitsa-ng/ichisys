@@ -95,6 +95,7 @@ function startEdit() {
     last_one_prize_image: p.last_one_prize_image || '',
     payment_methods: (p.payment_methods || '').split(',').filter(Boolean),
     prize_grades: p.prize_grades.map(g => ({
+      id: g.id,
       grade_name: g.grade_name,
       item_name: g.item_name,
       item_type: g.item_type,
@@ -137,12 +138,38 @@ async function saveEdit() {
     return
   }
   try {
-    const payload = { ...editForm.value, payment_methods: editForm.value.payment_methods.join(',') }
-    if (pool.value.status !== 'draft') {
-      delete payload.prize_grades
+    if (pool.value.status === 'draft') {
+      const payload = { ...editForm.value, payment_methods: editForm.value.payment_methods.join(',') }
+      const res = await api.patch(`/pools/${route.params.id}`, payload)
+      pool.value = res.data
+    } else {
+      const poolPayload = {
+        name: editForm.value.name,
+        banner_image: editForm.value.banner_image || null,
+        single_price: editForm.value.single_price,
+        allow_shipping: editForm.value.allow_shipping,
+        shipping_fee: editForm.value.shipping_fee,
+        free_shipping_threshold: editForm.value.free_shipping_threshold,
+        last_one_prize_name: editForm.value.last_one_prize_name || null,
+        last_one_prize_image: editForm.value.last_one_prize_image || null,
+        payment_methods: editForm.value.payment_methods.join(','),
+      }
+      const gradePayload = editForm.value.prize_grades.map(g => ({
+        id: g.id,
+        grade_name: g.grade_name,
+        item_name: g.item_name,
+        item_type: g.item_type,
+        image_url: g.image_url || null,
+        cost: g.cost,
+        market_price: g.market_price,
+        sort_order: g.sort_order,
+      }))
+      const [poolRes] = await Promise.all([
+        api.patch(`/pools/${route.params.id}`, poolPayload),
+        api.patch(`/pools/${route.params.id}/grades`, gradePayload),
+      ])
+      pool.value = poolRes.data
     }
-    const res = await api.patch(`/pools/${route.params.id}`, payload)
-    pool.value = res.data
     editing.value = false
   } catch (e) {
     error.value = formatError(e)

@@ -70,6 +70,17 @@ class PoolCreate(BaseModel):
         return v
 
 
+class PrizeGradeUpdate(BaseModel):
+    id: str
+    grade_name: Optional[str] = None
+    item_name: Optional[str] = None
+    item_type: Optional[str] = None
+    image_url: Optional[str] = None
+    cost: Optional[int] = None
+    market_price: Optional[int] = None
+    sort_order: Optional[int] = None
+
+
 class PoolUpdate(BaseModel):
     name: Optional[str] = None
     banner_image: Optional[str] = None
