@@ -1,0 +1,36 @@
+{
+  "name": "ichisys-store",
+  "version": "1.0.0",
+  "description": "一番賞抽獎系統 - 店面端（前台抽獎）",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win",
+    "build:portable": "electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.ichisys.store",
+    "productName": "一番賞抽獎系統",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "icon.png"
+    ],
+    "win": {
+      "target": ["nsis", "portable"],
+      "icon": "icon.png"
+    },
+    "nsis": {
+      "oneClick": true,
+      "runAfterFinish": true,
+      "language": "1041"
+    }
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}
