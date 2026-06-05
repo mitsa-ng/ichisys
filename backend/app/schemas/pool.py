@@ -45,7 +45,7 @@ class PoolCreate(BaseModel):
     free_shipping_threshold: int = 0
     last_one_prize_name: Optional[str] = None
     last_one_prize_image: Optional[str] = None
-    payment_methods: str = "onsite,linepay"
+    payment_methods: str = "onsite,linepay,draw_now"
     prize_grades: list[PrizeGradeCreate]
 
     @field_validator("name")
@@ -135,7 +135,7 @@ class PoolResponse(BaseModel):
     free_shipping_threshold: int
     last_one_prize_name: Optional[str] = None
     last_one_prize_image: Optional[str] = None
-    payment_methods: str = "onsite,linepay"
+    payment_methods: str = "onsite,linepay,draw_now"
     status: str
     total_tickets: int
     remaining_tickets: int

@@ -155,7 +155,7 @@ onUnmounted(() => {
             </div>
             <div class="text-sm text-gray-600 space-y-0.5">
               <div>金額：<strong class="text-gray-900">${{ p.amount.toLocaleString() }}</strong></div>
-              <div>方式：{{ p.method === 'onsite' ? '現場付款' : 'LinePay' }}</div>
+              <div>方式：{{ p.method === 'onsite' ? '現場付款' : p.method === 'linepay' ? 'LinePay' : p.method === 'draw_now' ? '抽就對了' : p.method }}</div>
               <div>選號：{{ p.serial_numbers }}</div>
               <div class="text-xs text-gray-400">建立時間：{{ new Date(p.created_at).toLocaleString('zh-TW') }}</div>
             </div>

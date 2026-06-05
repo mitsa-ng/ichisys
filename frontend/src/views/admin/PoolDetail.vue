@@ -382,6 +382,10 @@ const isDraft = computed(() => pool.value?.status === 'draft')
             <input v-model="editForm.payment_methods" value="linepay" type="checkbox" class="rounded" />
             LinePay
           </label>
+          <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input v-model="editForm.payment_methods" value="draw_now" type="checkbox" class="rounded" />
+            抽就對了（免付款）
+          </label>
         </div>
       </div>
 

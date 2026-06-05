@@ -60,11 +60,22 @@ async def create_payment(
     await db.commit()
     await db.refresh(payment)
 
-    await broadcast("payment_created", {
-        "payment_id": payment.id,
-        "pool_id": payment.pool_id,
-        "user_id": payment.user_id,
-    })
+    if body.method == "draw_now":
+        payment.status = "confirmed"
+        payment.confirmed_at = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(payment)
+        await broadcast("payment_confirmed", {
+            "payment_id": payment.id,
+            "pool_id": payment.pool_id,
+            "user_id": payment.user_id,
+        })
+    else:
+        await broadcast("payment_created", {
+            "payment_id": payment.id,
+            "pool_id": payment.pool_id,
+            "user_id": payment.user_id,
+        })
 
     return PaymentResponse.model_validate(payment)
 

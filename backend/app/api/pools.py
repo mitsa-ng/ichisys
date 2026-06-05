@@ -80,6 +80,7 @@ async def create_pool(
         name=body.name,
         banner_image=body.banner_image,
         single_price=body.single_price,
+        payment_methods=body.payment_methods,
         allow_shipping=body.allow_shipping,
         shipping_fee=body.shipping_fee,
         free_shipping_threshold=body.free_shipping_threshold,

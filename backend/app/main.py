@@ -36,6 +36,7 @@ app.include_router(warehouse.router)
 app.include_router(payments.router)
 app.include_router(events.router)
 app.include_router(upload.router)
+os.makedirs(settings.upload_dir, exist_ok=True)
 app.mount("/api/files", StaticFiles(directory=settings.upload_dir), name="files")
 
 

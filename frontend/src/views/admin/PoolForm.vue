@@ -49,7 +49,7 @@ const form = ref({
   free_shipping_threshold: 2000,
   last_one_prize_name: '',
   last_one_prize_image: '',
-  payment_methods: ['onsite', 'linepay'],
+  payment_methods: ['onsite', 'linepay', 'draw_now'],
   prize_grades: [
     { grade_name: 'A賞', item_name: '', item_type: '公仔', initial_stock: 2, cost: 300, market_price: 1200, image_url: '', sort_order: 0 },
     { grade_name: 'B賞', item_name: '', item_type: '吊飾', initial_stock: 8, cost: 150, market_price: 600, image_url: '', sort_order: 1 },
@@ -205,6 +205,10 @@ onUnmounted(() => {
           <label class="flex items-center gap-2 text-sm text-gray-700">
             <input v-model="form.payment_methods" value="linepay" type="checkbox" class="rounded" />
             LinePay
+          </label>
+          <label class="flex items-center gap-2 text-sm text-gray-700">
+            <input v-model="form.payment_methods" value="draw_now" type="checkbox" class="rounded" />
+            抽就對了（免付款）
           </label>
         </div>
       </div>

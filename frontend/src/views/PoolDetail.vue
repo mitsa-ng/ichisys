@@ -43,8 +43,7 @@ const totalPrice = computed(() => selectedNumbers.value.length * singlePrice.val
 const grades = computed(() => pool.value?.prize_grades ?? [])
 const paymentMethods = computed(() => (pool.value?.payment_methods || '').split(',').filter(Boolean))
 
-const methodLabels = { onsite: '現場付款', linepay: 'LinePay' }
-const linepayDisabled = true
+const methodLabels = { onsite: '現場付款', linepay: 'LinePay', draw_now: '抽就對了' }
 
 onMounted(async () => {
   await loadPool()
@@ -156,6 +155,11 @@ async function confirmPayment() {
       await doDraw()
     }
 
+    if (selectedMethod.value === 'draw_now') {
+      drawing.value = false
+      await doDraw()
+    }
+
     if (selectedMethod.value === 'onsite') {
       drawing.value = false
       waitingPayment.value = true
@@ -248,8 +252,8 @@ function closeResult() {
           <h3 class="text-lg font-bold text-gray-900 mb-4">選擇付款方式</h3>
 
           <div class="text-sm text-gray-600 mb-4">
-            選取 <strong>{{ selectedNumbers.length }}</strong> 張，
-            總計 <strong class="text-indigo-600">${{ totalPrice.toLocaleString() }}</strong>
+            選取 <strong>{{ selectedNumbers.length }}</strong> 張<template v-if="selectedMethod !== 'draw_now'">，
+            總計 <strong class="text-indigo-600">${{ totalPrice.toLocaleString() }}</strong></template>
           </div>
 
           <div class="space-y-3 mb-6">
@@ -268,7 +272,7 @@ function closeResult() {
                   <span class="text-sm font-medium" :class="m === 'linepay' ? 'text-gray-400' : 'text-gray-900'">{{ methodLabels[m] || m }}</span>
                   <span v-if="m === 'linepay'" class="text-xs bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded">暫不開放</span>
                 </div>
-                <div class="text-xs" :class="m === 'linepay' ? 'text-gray-300' : 'text-gray-400'">{{ m === 'linepay' ? '模擬線上付款' : '到店付款' }}</div>
+                <div class="text-xs" :class="m === 'linepay' ? 'text-gray-300' : 'text-gray-400'">{{ m === 'linepay' ? '模擬線上付款' : m === 'draw_now' ? '免付款直接抽' : '到店付款' }}</div>
               </div>
             </label>
           </div>
@@ -282,7 +286,7 @@ function closeResult() {
             <button @click="confirmPayment" :disabled="drawing"
               class="flex-1 bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50"
             >
-              {{ drawing ? '處理中...' : '確認付款並抽獎' }}
+              {{ drawing ? '處理中...' : selectedMethod === 'draw_now' ? '確認抽獎' : '確認付款並抽獎' }}
             </button>
           </div>
         </div>

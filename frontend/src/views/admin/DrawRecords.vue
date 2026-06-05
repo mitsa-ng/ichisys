@@ -115,7 +115,7 @@ function formatDate(d) {
                 :class="r.profit >= 0 ? 'text-green-600' : 'text-red-600'">
                 ${{ r.profit.toLocaleString() }}
               </td>
-              <td class="px-3 py-2 text-gray-600">{{ r.payment_method === 'onsite' ? '現場' : r.payment_method === 'linepay' ? 'LinePay' : r.payment_method }}</td>
+              <td class="px-3 py-2 text-gray-600">{{ r.payment_method === 'onsite' ? '現場' : r.payment_method === 'linepay' ? 'LinePay' : r.payment_method === 'draw_now' ? '抽就對了' : r.payment_method }}</td>
               <td class="px-3 py-2">
                 <span v-if="r.is_multi_draw" class="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">
                   同筆訂單 {{ r.amount > 0 ? '$' + r.amount.toLocaleString() : '' }}
