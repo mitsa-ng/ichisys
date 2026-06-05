@@ -1,7 +1,10 @@
+import csv
+import io
 from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -16,13 +19,12 @@ from app.schemas.admin import DrawRecordResponse
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
 
-@router.get("/draws", response_model=list[DrawRecordResponse])
-async def get_draw_records(
-    pool_id: Optional[str] = Query(None, description="Filter by pool"),
-    date_from: Optional[datetime] = Query(None, description="Start date"),
-    date_to: Optional[datetime] = Query(None, description="End date"),
-    db: AsyncSession = Depends(get_db),
-):
+async def _fetch_draws(
+    pool_id: Optional[str],
+    date_from: Optional[datetime],
+    date_to: Optional[datetime],
+    db: AsyncSession,
+) -> list[DrawRecordResponse]:
     query = (
         select(Ticket)
         .options(selectinload(Ticket.prize_grade))
@@ -96,3 +98,55 @@ async def get_draw_records(
         ))
 
     return records
+
+
+@router.get("/draws", response_model=list[DrawRecordResponse])
+async def get_draw_records(
+    pool_id: Optional[str] = Query(None),
+    date_from: Optional[datetime] = Query(None),
+    date_to: Optional[datetime] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    return await _fetch_draws(pool_id, date_from, date_to, db)
+
+
+@router.get("/draws/export")
+async def export_draws_csv(
+    pool_id: Optional[str] = Query(None),
+    date_from: Optional[datetime] = Query(None),
+    date_to: Optional[datetime] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    records = await _fetch_draws(pool_id, date_from, date_to, db)
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        "抽獎時間", "獎池代碼", "獎池名稱", "序號", "獎項等級",
+        "獎品名稱", "售價", "成本", "利潤", "付款方式",
+        "同筆訂單金額", "多抽訂單",
+    ])
+    for r in records:
+        def fmt(d):
+            return d.replace(tzinfo=None).strftime("%Y-%m-%d %H:%M:%S") if d else ""
+        writer.writerow([
+            fmt(r.drawn_at),
+            r.pool_code,
+            r.pool_name,
+            r.serial_number,
+            r.grade_name or "",
+            r.item_name or "",
+            r.single_price,
+            r.cost,
+            r.profit,
+            {"onsite": "現場", "linepay": "LinePay"}.get(r.payment_method, r.payment_method or ""),
+            r.amount,
+            "是" if r.is_multi_draw else "",
+        ])
+
+    output.seek(0)
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=draw_records.csv"},
+    )

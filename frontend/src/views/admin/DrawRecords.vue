@@ -14,6 +14,24 @@ const stats = computed(() => {
   return { totalRevenue, totalCost, totalProfit, count: records.value.length }
 })
 
+function exportCSV() {
+  const params = new URLSearchParams()
+  if (filterPoolId.value) params.set('pool_id', filterPoolId.value)
+  const token = localStorage.getItem('admin_token')
+  const url = `/api/admin/draws/export?${params.toString()}`
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'draw_records.csv'
+  fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    .then(res => res.blob())
+    .then(blob => {
+      const obj = URL.createObjectURL(blob)
+      a.href = obj
+      a.click()
+      URL.revokeObjectURL(obj)
+    })
+}
+
 async function loadDrawRecords() {
   loading.value = true
   try {
@@ -47,6 +65,10 @@ function formatDate(d) {
     <div class="flex items-center justify-between mb-4">
       <h2 class="text-lg font-semibold text-gray-900">抽獎紀錄</h2>
       <div class="flex items-center gap-3">
+        <button @click="exportCSV"
+          class="bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-green-700">
+          匯出 CSV
+        </button>
         <select v-model="filterPoolId" @change="loadDrawRecords"
           class="border rounded-lg px-3 py-1.5 text-sm text-gray-700">
           <option value="">全部獎池</option>
