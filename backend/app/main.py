@@ -1,7 +1,9 @@
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import settings
 from app.database import init_db
@@ -10,6 +12,7 @@ from app.api import admin, auth, pools, draw, warehouse, payments, events, setup
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    os.makedirs(settings.upload_dir, exist_ok=True)
     await init_db()
     yield
 
@@ -33,6 +36,7 @@ app.include_router(warehouse.router)
 app.include_router(payments.router)
 app.include_router(events.router)
 app.include_router(upload.router)
+app.mount("/api/files", StaticFiles(directory=settings.upload_dir), name="files")
 
 
 @app.get("/api/health")

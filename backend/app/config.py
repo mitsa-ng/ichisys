@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     cloudinary_cloud_name: str = ""
     cloudinary_api_key: str = ""
     cloudinary_api_secret: str = ""
+    upload_dir: str = "uploads"
     site_url: str = "http://localhost:8000"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 

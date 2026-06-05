@@ -1,4 +1,5 @@
 import io
+import os
 import uuid
 
 import cloudinary
@@ -14,11 +15,14 @@ router = APIRouter(prefix="/api/upload", tags=["upload"])
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 MAX_SIZE = 10 * 1024 * 1024
 
-cloudinary.config(
-    cloud_name=settings.cloudinary_cloud_name,
-    api_key=settings.cloudinary_api_key,
-    api_secret=settings.cloudinary_api_secret,
-)
+_use_cloudinary = bool(settings.cloudinary_cloud_name)
+
+if _use_cloudinary:
+    cloudinary.config(
+        cloud_name=settings.cloudinary_cloud_name,
+        api_key=settings.cloudinary_api_key,
+        api_secret=settings.cloudinary_api_secret,
+    )
 
 
 @router.post("")
@@ -39,18 +43,25 @@ async def upload_image(
             detail="檔案過大，最大 10MB",
         )
 
-    public_id = f"ichisys/{uuid.uuid4().hex}"
+    if _use_cloudinary:
+        try:
+            result = cloudinary.uploader.upload(
+                io.BytesIO(contents),
+                public_id=f"ichisys/{uuid.uuid4().hex}",
+                overwrite=True,
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"上傳失敗：{str(e)}",
+            )
+        return {"url": result["secure_url"]}
 
-    try:
-        result = cloudinary.uploader.upload(
-            io.BytesIO(contents),
-            public_id=public_id,
-            overwrite=True,
-        )
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"上傳失敗：{str(e)}",
-        )
+    ext = {"image/jpeg": ".jpg", "image/png": ".png", "image/gif": ".gif", "image/webp": ".webp"}.get(file.content_type, ".bin")
+    filename = f"{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join(settings.upload_dir, filename)
+    os.makedirs(settings.upload_dir, exist_ok=True)
+    with open(filepath, "wb") as f:
+        f.write(contents)
 
-    return {"url": result["secure_url"]}
+    return {"url": f"/api/files/{filename}"}
