@@ -343,5 +343,32 @@ function closeResult() {
         結帳抽獎
       </button>
     </div>
+
+    <div class="bg-white rounded-xl shadow-sm border p-6">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">獎賞一覽</h2>
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b">
+            <th class="text-left px-3 py-2 font-medium text-gray-600">獎賞等級與名稱</th>
+            <th class="text-left px-3 py-2 font-medium text-gray-600">圖片</th>
+            <th class="text-right px-3 py-2 font-medium text-gray-600">剩餘狀態</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y">
+          <tr v-for="g in grades" :key="g.id">
+            <td class="px-3 py-2">
+              <span class="font-medium text-gray-900">{{ g.grade_name }}</span>
+              <span class="text-gray-500 ml-1">{{ g.item_name }}</span>
+            </td>
+            <td class="px-3 py-2">
+              <img v-if="g.image_url" :src="g.image_url" class="w-12 h-12 object-cover rounded" />
+            </td>
+            <td class="px-3 py-2 text-right">
+              <span class="text-gray-700">剩 {{ g.remaining_stock }} / 共 {{ g.initial_stock }}</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </template>

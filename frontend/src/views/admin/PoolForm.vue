@@ -187,6 +187,10 @@ onUnmounted(() => {
               <label class="block text-xs text-gray-500 mb-1">市價</label>
               <input v-model.number="g.market_price" type="number" class="w-full border rounded-lg px-2 py-1.5 text-sm" />
             </div>
+            <div class="col-span-2 md:col-span-4">
+              <label class="block text-xs text-gray-500 mb-1">獎賞圖片網址（可選）</label>
+              <input v-model="g.image_url" class="w-full border rounded-lg px-2 py-1.5 text-sm" placeholder="https://..." />
+            </div>
           </div>
         </div>
         <p class="text-sm text-gray-500 mt-2">總抽數：<strong>{{ form.prize_grades.reduce((s, g) => s + g.initial_stock, 0) }}</strong></p>

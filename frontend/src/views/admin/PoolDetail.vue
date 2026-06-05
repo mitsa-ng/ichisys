@@ -336,6 +336,10 @@ const isDraft = computed(() => pool.value?.status === 'draft')
               <label class="block text-xs text-gray-500 mb-1">市價</label>
               <input v-model.number="g.market_price" type="number" class="w-full border rounded-lg px-2 py-1.5 text-sm" />
             </div>
+            <div class="col-span-2 md:col-span-4">
+              <label class="block text-xs text-gray-500 mb-1">獎賞圖片網址（可選）</label>
+              <input v-model="g.image_url" class="w-full border rounded-lg px-2 py-1.5 text-sm" placeholder="https://..." />
+            </div>
           </div>
         </div>
         <p class="text-sm text-gray-500 mt-2">總抽數：<strong>{{ totalTickets }}</strong></p>
@@ -391,6 +395,7 @@ const isDraft = computed(() => pool.value?.status === 'draft')
           <tr>
             <th class="text-left px-3 py-2 font-medium text-gray-600">等級</th>
             <th class="text-left px-3 py-2 font-medium text-gray-600">品名</th>
+            <th class="text-left px-3 py-2 font-medium text-gray-600">圖片</th>
             <th class="text-left px-3 py-2 font-medium text-gray-600">類型</th>
             <th class="text-right px-3 py-2 font-medium text-gray-600">庫存</th>
             <th class="text-right px-3 py-2 font-medium text-gray-600">成本</th>
@@ -401,6 +406,9 @@ const isDraft = computed(() => pool.value?.status === 'draft')
           <tr v-for="g in pool.prize_grades" :key="g.id">
             <td class="px-3 py-2 font-medium">{{ g.grade_name }}</td>
             <td class="px-3 py-2 text-gray-600">{{ g.item_name }}</td>
+            <td class="px-3 py-2">
+              <img v-if="g.image_url" :src="g.image_url" class="w-10 h-10 object-cover rounded" />
+            </td>
             <td class="px-3 py-2 text-gray-500">{{ g.item_type }}</td>
             <td class="px-3 py-2 text-right">{{ g.remaining_stock }} / {{ g.initial_stock }}</td>
             <td class="px-3 py-2 text-right">${{ g.cost }}</td>
