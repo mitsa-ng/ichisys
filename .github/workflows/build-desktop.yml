@@ -1,0 +1,60 @@
+name: Build Desktop Installer
+
+on:
+  push:
+    branches: [feat/local-desktop-sqlite]
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
+      - name: Install Python deps
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Package backend with PyInstaller
+        run: |
+          cd backend
+          python -m PyInstaller ichiban-server.spec --clean --noconfirm
+
+      - name: Bundle frontend dist with backend
+        run: |
+          mkdir -p backend/dist/ichiban-server/frontend
+          cp -r frontend/dist backend/dist/ichiban-server/frontend/
+
+      - name: Build Electron Windows installer
+        run: |
+          cd electron
+          npm install
+          npx electron-builder --win --publish=never
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ichiban-setup-windows
+          path: electron/dist/*.exe
+          if-no-files-found: error
