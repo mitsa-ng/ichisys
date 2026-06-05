@@ -99,6 +99,7 @@ async def request_pickup(user_id: str, item_ids: list[str], db: AsyncSession = D
         item.qr_code_token = token
         item.status = "unclaimed"
 
+    await db.commit()
     return {
         "message": "Pickup requested",
         "qr_code_token": token,

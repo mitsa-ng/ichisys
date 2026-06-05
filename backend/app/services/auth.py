@@ -1,26 +1,23 @@
 import io
 import random
 import string
+from datetime import datetime, timedelta, timezone
 
+import bcrypt as _bcrypt
 import pyotp
 import qrcode
 import qrcode.image.svg
-from passlib.context import CryptContext
-from datetime import datetime, timedelta, timezone
-
 from jose import JWTError, jwt
 
 from app.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+    return _bcrypt.checkpw(plain_password.encode(), hashed_password.encode())
 
 
 def create_access_token(admin_id: str) -> str:
