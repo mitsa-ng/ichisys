@@ -292,7 +292,7 @@ function closeResult() {
           <h3 class="text-lg font-bold text-gray-900 mb-4">請至櫃檯付款</h3>
           <p class="text-sm text-gray-500 mb-4">請出示以下條碼給店員掃描</p>
           <img
-            :src="`/payments/qrcode/${payment.id}`"
+            :src="`/api/payments/qrcode/${payment.id}`"
             class="mx-auto w-48 h-48 mb-4"
             alt="付款 QR Code"
           />
