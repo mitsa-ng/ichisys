@@ -434,7 +434,7 @@ const isDraft = computed(() => pool.value?.status === 'draft')
             <td class="px-3 py-2 font-medium">{{ g.grade_name }}</td>
             <td class="px-3 py-2 text-gray-600">{{ g.item_name }}</td>
             <td class="px-3 py-2">
-              <img v-if="g.image_url" :src="g.image_url" class="w-10 h-10 object-cover rounded" />
+              <img v-if="g.image_url" :src="g.image_url" class="w-16 h-16 object-cover rounded" />
             </td>
             <td class="px-3 py-2 text-gray-500">{{ g.item_type }}</td>
             <td class="px-3 py-2 text-right">{{ g.remaining_stock }} / {{ g.initial_stock }}</td>

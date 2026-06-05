@@ -361,7 +361,7 @@ function closeResult() {
               <span class="text-gray-500 ml-1">{{ g.item_name }}</span>
             </td>
             <td class="px-3 py-2">
-              <img v-if="g.image_url" :src="g.image_url" class="w-12 h-12 object-cover rounded" />
+              <img v-if="g.image_url" :src="g.image_url" class="w-20 h-20 object-cover rounded" />
             </td>
             <td class="px-3 py-2 text-right">
               <span class="text-gray-700">剩 {{ g.remaining_stock }} / 共 {{ g.initial_stock }}</span>
