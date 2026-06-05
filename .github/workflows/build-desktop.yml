@@ -19,7 +19,6 @@ jobs:
       - run: cd frontend && npm install && npm run build
       - run: cd backend && pip install -r requirements.txt && pip install pyinstaller
       - run: cd backend && python -m PyInstaller ichiban-server.spec --clean --noconfirm
-      - run: mkdir -p backend/dist/ichiban-server/frontend && cp -r frontend/dist backend/dist/ichiban-server/frontend/
       - run: cd electron && npm install && npx electron-builder --win --publish=never
       - uses: actions/upload-artifact@v4
         with:
