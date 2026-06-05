@@ -1,8 +1,104 @@
 const { app, BrowserWindow, Menu, shell, dialog } = require('electron')
 const path = require('path')
+const { spawn } = require('child_process')
+const http = require('http')
 
-const DEFAULT_URL = 'http://localhost:5173'
+const BACKEND_PORT = 8000
+const BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}`
 let mainWindow = null
+let backendProcess = null
+
+function getBackendPath() {
+  const isDev = !app.isPackaged
+  if (isDev) {
+    return {
+      command: 'uvicorn',
+      args: ['app.main:app', '--host', '127.0.0.1', '--port', String(BACKEND_PORT), '--log-level', 'info'],
+      cwd: path.join(__dirname, '..', 'backend'),
+    }
+  }
+  // Packaged: backend is in the extraResources/backend folder
+  const resourcePath = process.resourcesPath
+  const ext = process.platform === 'win32' ? '.exe' : ''
+  return {
+    command: path.join(resourcePath, 'backend', 'ichiban-server' + ext),
+    args: [],
+    cwd: path.join(resourcePath, 'backend'),
+  }
+}
+
+function startBackend() {
+  return new Promise((resolve, reject) => {
+    const { command, args, cwd } = getBackendPath()
+    console.log(`Starting backend: ${command} ${args.join(' ')}`)
+
+    backendProcess = spawn(command, args, {
+      cwd,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, PORT: String(BACKEND_PORT), HOST: '127.0.0.1' },
+    })
+
+    backendProcess.stdout.on('data', (data) => {
+      const text = data.toString()
+      console.log('[backend]', text)
+      if (text.includes('Uvicorn running')) {
+        resolve()
+      }
+    })
+
+    backendProcess.stderr.on('data', (data) => {
+      const text = data.toString()
+      console.log('[backend]', text)
+      // Uvicorn logs to stderr
+      if (text.includes('Uvicorn running')) {
+        resolve()
+      }
+    })
+
+    backendProcess.on('error', (err) => {
+      console.error('Failed to start backend:', err)
+      reject(err)
+    })
+
+    backendProcess.on('exit', (code) => {
+      console.log('Backend exited with code:', code)
+      backendProcess = null
+    })
+
+    // Timeout fallback — try connecting
+    setTimeout(() => {
+      waitForBackend(resolve, reject, 0)
+    }, 3000)
+  })
+}
+
+function waitForBackend(resolve, reject, attempt) {
+  if (attempt > 20) {
+    reject(new Error('Backend did not start in time'))
+    return
+  }
+  http.get(`${BACKEND_URL}/api/health`, (res) => {
+    if (res.statusCode === 200) {
+      resolve()
+    } else {
+      setTimeout(() => waitForBackend(resolve, reject, attempt + 1), 1000)
+    }
+  }).on('error', () => {
+    setTimeout(() => waitForBackend(resolve, reject, attempt + 1), 1000)
+  })
+}
+
+function stopBackend() {
+  if (backendProcess) {
+    console.log('Stopping backend...')
+    if (process.platform === 'win32') {
+      spawn('taskkill', ['/pid', String(backendProcess.pid), '/f', '/t'])
+    } else {
+      backendProcess.kill('SIGTERM')
+    }
+    backendProcess = null
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -17,13 +113,18 @@ function createWindow() {
       nodeIntegration: false,
     },
     autoHideMenuBar: true,
+    title: '一番賞抽獎系統',
   })
 
-  mainWindow.loadURL(DEFAULT_URL)
+  mainWindow.loadURL(BACKEND_URL)
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
     return { action: 'deny' }
+  })
+
+  mainWindow.on('closed', () => {
+    mainWindow = null
   })
 }
 
@@ -52,11 +153,11 @@ function buildMenu() {
       submenu: [
         {
           label: '前台首頁',
-          click: () => mainWindow?.loadURL(DEFAULT_URL),
+          click: () => mainWindow?.loadURL(BACKEND_URL),
         },
         {
           label: '管理後台',
-          click: () => mainWindow?.loadURL(`${DEFAULT_URL}/admin/login`),
+          click: () => mainWindow?.loadURL(`${BACKEND_URL}/admin/login`),
         },
         {
           label: '輸入網址...',
@@ -118,9 +219,17 @@ function buildMenu() {
   Menu.setApplicationMenu(menu)
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   buildMenu()
-  createWindow()
+  try {
+    await startBackend()
+    console.log('Backend is ready')
+    createWindow()
+  } catch (err) {
+    console.error('Failed to start backend:', err)
+    dialog.showErrorBox('啟動失敗', '無法啟動後端伺服器，請確認 ichiban-server 執行檔存在。')
+    app.quit()
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -130,7 +239,12 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  stopBackend()
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  stopBackend()
 })

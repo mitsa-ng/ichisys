@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, update
@@ -93,7 +93,7 @@ async def request_pickup(user_id: str, item_ids: list[str], db: AsyncSession = D
         )
 
     token = str(uuid.uuid4())
-    expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+    expires_at = datetime.utcnow() + timedelta(days=7)
 
     for item in items:
         item.qr_code_token = token
@@ -148,6 +148,6 @@ async def confirm_pickup(warehouse_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found or already claimed")
 
     item.status = "picked_up"
-    item.claimed_at = datetime.now(timezone.utc)
+    item.claimed_at = datetime.utcnow()
     await db.commit()
     return {"message": "Pickup confirmed"}

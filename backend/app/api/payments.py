@@ -1,5 +1,5 @@
 import io
-from datetime import datetime, timezone
+from datetime import datetime
 
 import qrcode
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
@@ -62,7 +62,7 @@ async def create_payment(
 
     if body.method == "draw_now":
         payment.status = "confirmed"
-        payment.confirmed_at = datetime.now(timezone.utc)
+        payment.confirmed_at = datetime.utcnow()
         await db.commit()
         await db.refresh(payment)
         await broadcast("payment_confirmed", {
@@ -91,7 +91,7 @@ async def confirm_payment(payment_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment already processed")
 
     payment.status = "confirmed"
-    payment.confirmed_at = datetime.now(timezone.utc)
+    payment.confirmed_at = datetime.utcnow()
     await db.commit()
     await db.refresh(payment)
 
@@ -115,7 +115,7 @@ async def cancel_payment(payment_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Payment already processed")
 
     payment.status = "cancelled"
-    payment.cancelled_at = datetime.now(timezone.utc)
+    payment.cancelled_at = datetime.utcnow()
     await db.commit()
     await db.refresh(payment)
 

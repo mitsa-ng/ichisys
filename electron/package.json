@@ -21,6 +21,13 @@
       "preload.js",
       "icon.png"
     ],
+    "extraResources": [
+      {
+        "from": "../backend/dist/ichiban-server",
+        "to": "backend",
+        "filter": ["**/*"]
+      }
+    ],
     "mac": {
       "category": "public.app-category.business",
       "target": ["dmg", "zip"],

@@ -1,9 +1,11 @@
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from app.config import settings
 from app.database import init_db
@@ -17,7 +19,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Ichiban Kuji API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Ichiban Kuji", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,3 +45,22 @@ app.mount("/api/files", StaticFiles(directory=settings.upload_dir), name="files"
 @app.get("/api/health")
 async def health():
     return {"status": "ok"}
+
+
+frontend_dir_env = os.environ.get("FRONTEND_DIST")
+if frontend_dir_env:
+    frontend_dir = Path(frontend_dir_env)
+else:
+    frontend_dir = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+if frontend_dir.is_dir():
+    app.mount("/assets", StaticFiles(directory=str(frontend_dir / "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_frontend(full_path: str):
+        if full_path.startswith("api/"):
+            from fastapi.responses import JSONResponse
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        index_path = frontend_dir / "index.html"
+        if not index_path.exists():
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        return FileResponse(str(index_path))

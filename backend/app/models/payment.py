@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -18,7 +18,7 @@ class Payment(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending")
     serial_numbers: Mapped[str] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(), default=lambda: datetime.utcnow()
     )
-    confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
-    cancelled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    confirmed_at: Mapped[datetime] = mapped_column(DateTime(), nullable=True)
+    cancelled_at: Mapped[datetime] = mapped_column(DateTime(), nullable=True)

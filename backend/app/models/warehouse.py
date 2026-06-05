@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -23,15 +23,15 @@ class VirtualWarehouse(Base):
     shipping_address: Mapped[str] = mapped_column(Text, nullable=True)
     shipping_tracking: Mapped[str] = mapped_column(String(200), nullable=True)
     qr_code_token: Mapped[str] = mapped_column(String(100), nullable=True)
-    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
-    claimed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(), nullable=True)
+    claimed_at: Mapped[datetime] = mapped_column(DateTime(), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(), default=lambda: datetime.utcnow()
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
+        DateTime(),
+        default=lambda: datetime.utcnow(),
+        onupdate=lambda: datetime.utcnow(),
     )
 
     ticket = relationship("Ticket", back_populates="warehouse_entry")

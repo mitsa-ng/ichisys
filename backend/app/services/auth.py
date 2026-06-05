@@ -1,7 +1,7 @@
 import io
 import random
 import string
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 
 import bcrypt as _bcrypt
 import pyotp
@@ -21,7 +21,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def create_access_token(admin_id: str) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
+    expire = datetime.utcnow() + timedelta(minutes=settings.jwt_expire_minutes)
     payload = {"sub": admin_id, "exp": expire}
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 

@@ -1,18 +1,19 @@
+import os
+
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/ichiban"
-    database_url_sync: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/ichiban"
+    database_url: str = os.environ.get(
+        "DATABASE_URL",
+        f"sqlite+aiosqlite:///{os.environ.get('ICHIBAN_DATA_DIR', '.')}/ichiban.db",
+    )
     secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60
     admin_email: str = "admin@ichiban.com"
     admin_password: str = "admin123"
-    cloudinary_cloud_name: str = ""
-    cloudinary_api_key: str = ""
-    cloudinary_api_secret: str = ""
-    upload_dir: str = "uploads"
+    upload_dir: str = os.environ.get("ICHIBAN_DATA_DIR", "uploads")
     site_url: str = "http://localhost:8000"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 

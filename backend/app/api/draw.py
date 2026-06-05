@@ -1,7 +1,7 @@
-from datetime import datetime, timezone
+from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -71,7 +71,7 @@ async def draw_tickets(pool_id: str, body: DrawRequest, db: AsyncSession = Depen
             Ticket.pool_id == pool_id,
             Ticket.serial_number.in_(body.serial_numbers),
             Ticket.is_drawn == False,
-        ).with_for_update()
+        )
     )
     tickets = ticket_result.scalars().all()
 
@@ -84,7 +84,7 @@ async def draw_tickets(pool_id: str, body: DrawRequest, db: AsyncSession = Depen
         )
 
     results = []
-    now = datetime.now(timezone.utc)
+    now = datetime.utcnow()
     for ticket in tickets:
         ticket.is_drawn = True
         ticket.user_id = body.user_id
@@ -93,7 +93,7 @@ async def draw_tickets(pool_id: str, body: DrawRequest, db: AsyncSession = Depen
 
         if ticket.prize_grade:
             grade_result = await db.execute(
-                select(PrizeGrade).where(PrizeGrade.id == ticket.prize_grade_id).with_for_update()
+                select(PrizeGrade).where(PrizeGrade.id == ticket.prize_grade_id)
             )
             grade = grade_result.scalar_one()
             grade.remaining_stock = max(0, grade.remaining_stock - 1)

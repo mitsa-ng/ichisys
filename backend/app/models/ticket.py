@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -18,10 +18,10 @@ class Ticket(Base):
     serial_number: Mapped[int] = mapped_column(Integer, nullable=False)
     is_drawn: Mapped[bool] = mapped_column(Boolean, default=False)
     user_id: Mapped[str] = mapped_column(String(100), nullable=True)
-    drawn_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    drawn_at: Mapped[datetime] = mapped_column(DateTime(), nullable=True)
     order_id: Mapped[str] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
+        DateTime(), default=lambda: datetime.utcnow()
     )
 
     pool = relationship("Pool", back_populates="tickets")
