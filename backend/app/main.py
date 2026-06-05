@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text as sa_text
 
 from app.config import settings
 from app.database import init_db
@@ -42,4 +43,7 @@ app.mount("/api/files", StaticFiles(directory=settings.upload_dir), name="files"
 
 @app.get("/api/health")
 async def health():
+    from app.database import async_session
+    async with async_session() as session:
+        await session.execute(sa_text("SELECT 1"))
     return {"status": "ok"}

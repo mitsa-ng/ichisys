@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Integer, String
+from sqlalchemy import DateTime, Integer, String, Index
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -9,6 +9,12 @@ from app.database import Base
 
 class Payment(Base):
     __tablename__ = "payments"
+
+    __table_args__ = (
+        Index("ix_payments_pool_id", "pool_id"),
+        Index("ix_payments_status", "status"),
+        Index("ix_payments_user_id", "user_id"),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     pool_id: Mapped[str] = mapped_column(String, nullable=False)

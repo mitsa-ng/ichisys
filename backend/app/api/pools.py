@@ -31,33 +31,36 @@ async def list_pools(
     status_filter: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Pool).order_by(Pool.created_at.desc())
+    grade_count_subq = (
+        select(PrizeGrade.pool_id, func.count().label("cnt"))
+        .group_by(PrizeGrade.pool_id)
+        .subquery()
+    )
+    query = (
+        select(Pool, grade_count_subq.c.cnt)
+        .outerjoin(grade_count_subq, Pool.id == grade_count_subq.c.pool_id)
+        .order_by(Pool.created_at.desc())
+    )
     if status_filter:
         query = query.where(Pool.status == status_filter)
     result = await db.execute(query)
-    pools = result.scalars().all()
+    rows = result.all()
 
-    output = []
-    for p in pools:
-        grade_count_result = await db.execute(
-            select(func.count()).select_from(PrizeGrade).where(PrizeGrade.pool_id == p.id)
+    return [
+        PoolListResponse(
+            id=p.id,
+            code=p.code,
+            name=p.name,
+            banner_image=p.banner_image,
+            single_price=p.single_price,
+            status=p.status,
+            total_tickets=p.total_tickets,
+            remaining_tickets=p.remaining_tickets,
+            grade_count=cnt or 0,
+            created_at=p.created_at,
         )
-        grade_count = grade_count_result.scalar() or 0
-        output.append(
-            PoolListResponse(
-                id=p.id,
-                code=p.code,
-                name=p.name,
-                banner_image=p.banner_image,
-                single_price=p.single_price,
-                status=p.status,
-                total_tickets=p.total_tickets,
-                remaining_tickets=p.remaining_tickets,
-                grade_count=grade_count,
-                created_at=p.created_at,
-            )
-        )
-    return output
+        for p, cnt in rows
+    ]
 
 
 @router.post("", response_model=PoolResponse, status_code=status.HTTP_201_CREATED)

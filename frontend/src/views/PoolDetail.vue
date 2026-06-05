@@ -124,12 +124,7 @@ async function doDraw() {
     payment.value = null
     waitingPayment.value = false
 
-    const [poolRes, ticketRes] = await Promise.all([
-      api.get(`/pools/${route.params.id}`),
-      api.get(`/pools/${route.params.id}/tickets`),
-    ])
-    pool.value = poolRes.data
-    tickets.value = ticketRes.data
+    await loadPool()
   } catch (e) {
     error.value = e.response?.data?.detail || e.message || '抽獎失敗'
   }

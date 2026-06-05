@@ -85,17 +85,23 @@ async def draw_tickets(pool_id: str, body: DrawRequest, db: AsyncSession = Depen
 
     results = []
     now = datetime.now(timezone.utc)
+
+    grade_ids = list({t.prize_grade_id for t in tickets if t.prize_grade_id})
+    grades_map = {}
+    if grade_ids:
+        grade_result = await db.execute(
+            select(PrizeGrade).where(PrizeGrade.id.in_(grade_ids)).with_for_update()
+        )
+        grades_map = {g.id: g for g in grade_result.scalars().all()}
+
     for ticket in tickets:
         ticket.is_drawn = True
         ticket.user_id = body.user_id
         ticket.drawn_at = now
         ticket.order_id = payment.id
 
-        if ticket.prize_grade:
-            grade_result = await db.execute(
-                select(PrizeGrade).where(PrizeGrade.id == ticket.prize_grade_id).with_for_update()
-            )
-            grade = grade_result.scalar_one()
+        if ticket.prize_grade_id and ticket.prize_grade_id in grades_map:
+            grade = grades_map[ticket.prize_grade_id]
             grade.remaining_stock = max(0, grade.remaining_stock - 1)
 
             warehouse = VirtualWarehouse(

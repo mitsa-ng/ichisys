@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -9,6 +9,10 @@ from app.database import Base
 
 class PrizeGrade(Base):
     __tablename__ = "prize_grades"
+
+    __table_args__ = (
+        Index("ix_prize_grades_pool_id", "pool_id"),
+    )
 
     id: Mapped[str] = mapped_column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     code: Mapped[str] = mapped_column(String(20), unique=True, nullable=False)
