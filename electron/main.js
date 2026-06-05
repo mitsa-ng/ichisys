@@ -24,18 +24,24 @@ function getBackendPath() {
     command: path.join(resourcePath, 'backend', 'ichiban-server' + ext),
     args: [],
     cwd: path.join(resourcePath, 'backend'),
+    frontendDist: path.join(resourcePath, 'backend', 'frontend', 'dist'),
   }
 }
 
 function startBackend() {
   return new Promise((resolve, reject) => {
-    const { command, args, cwd } = getBackendPath()
+    const { command, args, cwd, frontendDist } = getBackendPath()
     console.log(`Starting backend: ${command} ${args.join(' ')}`)
+
+    const env = { ...process.env, PORT: String(BACKEND_PORT), HOST: '127.0.0.1' }
+    if (frontendDist) {
+      env.FRONTEND_DIST = frontendDist
+    }
 
     backendProcess = spawn(command, args, {
       cwd,
       stdio: ['ignore', 'pipe', 'pipe'],
-      env: { ...process.env, PORT: String(BACKEND_PORT), HOST: '127.0.0.1' },
+      env,
     })
 
     backendProcess.stdout.on('data', (data) => {

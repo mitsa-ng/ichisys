@@ -1,4 +1,5 @@
 import os
+import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -50,6 +51,8 @@ async def health():
 frontend_dir_env = os.environ.get("FRONTEND_DIST")
 if frontend_dir_env:
     frontend_dir = Path(frontend_dir_env)
+elif getattr(sys, "frozen", False):
+    frontend_dir = Path(sys.executable).parent / "frontend" / "dist"
 else:
     frontend_dir = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
 if frontend_dir.is_dir():

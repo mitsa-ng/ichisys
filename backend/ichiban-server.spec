@@ -10,7 +10,9 @@ a = Analysis(
     ['run.py'],
     pathex=[BASE_DIR],
     binaries=[],
-    datas=[],
+    datas=[
+        ('../frontend/dist', 'frontend/dist'),
+    ],
     hiddenimports=[
         'app',
         'app.api',
