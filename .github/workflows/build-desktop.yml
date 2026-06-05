@@ -1,4 +1,4 @@
-name: Build Desktop Installer
+name: Build Desktop Installers
 
 on:
   push:
@@ -6,22 +6,57 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-windows:
+  build:
     runs-on: windows-latest
+
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - uses: actions/setup-node@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
-      - run: cd frontend && npm install && npm run build
-      - run: cd backend && pip install -r requirements.txt && pip install pyinstaller
-      - run: cd backend && python -m PyInstaller ichiban-server.spec --clean --noconfirm
-      - run: cd electron && npm install && npx electron-builder --win --publish=never
-      - uses: actions/upload-artifact@v4
+
+      - name: Build frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
+      # ── Package 1: Backend server ──
+      - name: Install Python deps
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Package backend with PyInstaller
+        run: |
+          cd backend
+          python -m PyInstaller ichiban-server.spec --clean --noconfirm
+
+      - name: Upload backend server
+        uses: actions/upload-artifact@v4
         with:
-          name: ichiban-setup-windows
-          path: electron/dist/*.exe
+          name: ichiban-backend-server
+          path: backend/dist/ichiban-server/
+          if-no-files-found: error
+
+      # ── Package 2: Frontend Electron store app ──
+      - name: Build frontend Electron store app
+        run: |
+          cd electron-store
+          npm install
+          npx electron-builder --win --publish=never
+
+      - name: Upload frontend store
+        uses: actions/upload-artifact@v4
+        with:
+          name: ichiban-store-setup
+          path: electron-store/dist/*.exe
           if-no-files-found: error
