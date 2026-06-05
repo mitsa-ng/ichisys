@@ -1,7 +1,7 @@
 const { app, BrowserWindow, Menu, shell, dialog } = require('electron')
 const path = require('path')
 
-const DEFAULT_URL = 'https://ichisys.vercel.app'
+const DEFAULT_URL = 'http://localhost:5173'
 let mainWindow = null
 
 function createWindow() {
