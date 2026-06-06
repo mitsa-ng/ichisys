@@ -7,7 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
+from app.dependencies import get_current_admin
+from app.models.admin import Admin
 from app.models.ticket import Ticket
+from app.models.prize_item import PrizeItem
 from app.models.warehouse import VirtualWarehouse
 from app.schemas.warehouse import WarehouseItemResponse, ShippingRequest
 
@@ -20,6 +23,7 @@ async def get_user_warehouse(user_id: str, db: AsyncSession = Depends(get_db)):
         select(VirtualWarehouse)
         .options(
             selectinload(VirtualWarehouse.ticket).selectinload(Ticket.prize_grade),
+            selectinload(VirtualWarehouse.ticket).selectinload(Ticket.prize_item),
             selectinload(VirtualWarehouse.ticket).selectinload(Ticket.pool),
         )
         .where(
@@ -38,8 +42,8 @@ async def get_user_warehouse(user_id: str, db: AsyncSession = Depends(get_db)):
             status=item.status,
             pool_name=item.ticket.pool.name if item.ticket.pool else "",
             grade_name=item.ticket.prize_grade.grade_name if item.ticket.prize_grade else "",
-            item_name=item.ticket.prize_grade.item_name if item.ticket.prize_grade else "",
-            item_type=item.ticket.prize_grade.item_type if item.ticket.prize_grade else "",
+            item_name=item.ticket.prize_item.name if item.ticket.prize_item else "",
+            item_type=item.ticket.prize_item.category if item.ticket.prize_item else "",
             serial_number=item.ticket.serial_number,
             qr_code_token=item.qr_code_token,
             expires_at=item.expires_at,
@@ -108,11 +112,12 @@ async def request_pickup(user_id: str, item_ids: list[str], db: AsyncSession = D
 
 
 @router.post("/verify-qr")
-async def verify_qr(token: str, db: AsyncSession = Depends(get_db)):
+async def verify_qr(token: str, db: AsyncSession = Depends(get_db), admin: Admin = Depends(get_current_admin)):
     result = await db.execute(
         select(VirtualWarehouse)
         .options(
             selectinload(VirtualWarehouse.ticket).selectinload(Ticket.prize_grade),
+            selectinload(VirtualWarehouse.ticket).selectinload(Ticket.prize_item),
         )
         .where(
             VirtualWarehouse.qr_code_token == token,
@@ -128,7 +133,7 @@ async def verify_qr(token: str, db: AsyncSession = Depends(get_db)):
         {
             "warehouse_id": item.id,
             "grade_name": item.ticket.prize_grade.grade_name if item.ticket.prize_grade else "",
-            "item_name": item.ticket.prize_grade.item_name if item.ticket.prize_grade else "",
+            "item_name": item.ticket.prize_item.name if item.ticket.prize_item else "",
             "status": item.status,
         }
         for item in items
@@ -136,7 +141,7 @@ async def verify_qr(token: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/confirm-pickup/{warehouse_id}")
-async def confirm_pickup(warehouse_id: str, db: AsyncSession = Depends(get_db)):
+async def confirm_pickup(warehouse_id: str, db: AsyncSession = Depends(get_db), admin: Admin = Depends(get_current_admin)):
     result = await db.execute(
         select(VirtualWarehouse).where(
             VirtualWarehouse.id == warehouse_id,

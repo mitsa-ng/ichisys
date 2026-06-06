@@ -4,15 +4,34 @@ from typing import Optional
 from pydantic import BaseModel, field_validator
 
 
-class PrizeGradeCreate(BaseModel):
-    grade_name: str
-    item_name: str
-    item_type: str
-    initial_stock: int
+class PrizeItemCreate(BaseModel):
+    name: str
+    stock: int
+    category: str = "卡牌"
     cost: int = 0
     market_price: int = 0
     image_url: Optional[str] = None
     sort_order: int = 0
+
+    @field_validator("name")
+    @classmethod
+    def name_not_empty(cls, v):
+        if not v.strip():
+            raise ValueError("獎品名稱不得為空")
+        return v.strip()
+
+    @field_validator("stock")
+    @classmethod
+    def stock_must_be_positive(cls, v):
+        if v < 1:
+            raise ValueError("獎品庫存必須大於 0")
+        return v
+
+
+class PrizeGradeCreate(BaseModel):
+    grade_name: str
+    sort_order: int = 0
+    prize_items: list[PrizeItemCreate] = []
 
     @field_validator("grade_name")
     @classmethod
@@ -20,20 +39,6 @@ class PrizeGradeCreate(BaseModel):
         if not v.strip():
             raise ValueError("獎項等級不得為空")
         return v.strip()
-
-    @field_validator("item_name")
-    @classmethod
-    def item_name_not_empty(cls, v):
-        if not v.strip():
-            raise ValueError("獎品名稱不得為空")
-        return v.strip()
-
-    @field_validator("initial_stock")
-    @classmethod
-    def stock_must_be_positive(cls, v):
-        if v < 1:
-            raise ValueError("獎品庫存必須大於 0")
-        return v
 
 
 class PoolCreate(BaseModel):
@@ -43,8 +48,6 @@ class PoolCreate(BaseModel):
     allow_shipping: bool = True
     shipping_fee: int = 0
     free_shipping_threshold: int = 0
-    last_one_prize_name: Optional[str] = None
-    last_one_prize_image: Optional[str] = None
     payment_methods: str = "onsite,linepay,draw_now"
     prize_grades: list[PrizeGradeCreate]
 
@@ -70,14 +73,20 @@ class PoolCreate(BaseModel):
         return v
 
 
-class PrizeGradeUpdate(BaseModel):
-    id: str
-    grade_name: Optional[str] = None
-    item_name: Optional[str] = None
-    item_type: Optional[str] = None
-    image_url: Optional[str] = None
+class PrizeItemUpdate(BaseModel):
+    id: Optional[str] = None
+    name: Optional[str] = None
+    stock: Optional[int] = None
+    category: Optional[str] = None
     cost: Optional[int] = None
     market_price: Optional[int] = None
+    image_url: Optional[str] = None
+    sort_order: Optional[int] = None
+
+
+class PrizeGradeUpdate(BaseModel):
+    id: Optional[str] = None
+    grade_name: Optional[str] = None
     sort_order: Optional[int] = None
 
 
@@ -88,8 +97,6 @@ class PoolUpdate(BaseModel):
     allow_shipping: Optional[bool] = None
     shipping_fee: Optional[int] = None
     free_shipping_threshold: Optional[int] = None
-    last_one_prize_name: Optional[str] = None
-    last_one_prize_image: Optional[str] = None
     status: Optional[str] = None
 
 
@@ -100,10 +107,23 @@ class PoolUpdateWithGrades(BaseModel):
     allow_shipping: Optional[bool] = None
     shipping_fee: Optional[int] = None
     free_shipping_threshold: Optional[int] = None
-    last_one_prize_name: Optional[str] = None
-    last_one_prize_image: Optional[str] = None
     payment_methods: Optional[str] = None
     prize_grades: Optional[list[PrizeGradeCreate]] = None
+
+
+class PrizeItemResponse(BaseModel):
+    id: str
+    name: str
+    stock: int
+    remaining_stock: int
+    category: str
+    cost: int
+    market_price: int
+    image_url: Optional[str] = None
+    sort_order: int
+
+    class Config:
+        from_attributes = True
 
 
 class PrizeGradeResponse(BaseModel):
@@ -111,14 +131,8 @@ class PrizeGradeResponse(BaseModel):
     code: str
     pool_id: str
     grade_name: str
-    item_name: str
-    item_type: str
-    initial_stock: int
-    remaining_stock: int
-    cost: int
-    market_price: int
-    image_url: Optional[str] = None
     sort_order: int
+    prize_items: list[PrizeItemResponse] = []
 
     class Config:
         from_attributes = True
@@ -133,8 +147,6 @@ class PoolResponse(BaseModel):
     allow_shipping: bool
     shipping_fee: int
     free_shipping_threshold: int
-    last_one_prize_name: Optional[str] = None
-    last_one_prize_image: Optional[str] = None
     payment_methods: str = "onsite,linepay,draw_now"
     status: str
     total_tickets: int

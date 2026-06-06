@@ -18,8 +18,6 @@ class Pool(Base):
     allow_shipping: Mapped[bool] = mapped_column(Boolean, default=True)
     shipping_fee: Mapped[int] = mapped_column(Integer, default=0)
     free_shipping_threshold: Mapped[int] = mapped_column(Integer, default=0)
-    last_one_prize_name: Mapped[str] = mapped_column(String(200), nullable=True)
-    last_one_prize_image: Mapped[str] = mapped_column(Text, nullable=True)
     payment_methods: Mapped[str] = mapped_column(String(100), default="onsite,linepay,draw_now")
     status: Mapped[str] = mapped_column(
         String(20), default="draft"

@@ -10,6 +10,10 @@ const routes = [
     component: () => import('./views/PoolDetail.vue'),
   },
   {
+    path: '/pool/:id/prizes',
+    component: () => import('./views/PoolPrizes.vue'),
+  },
+  {
     path: '/warehouse/:userId',
     component: () => import('./views/Warehouse.vue'),
   },

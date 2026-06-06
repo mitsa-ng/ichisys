@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import api from '../api'
 
 const props = defineProps({
@@ -11,7 +11,10 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const uploading = ref(false)
+const imgError = ref(false)
 const inputRef = ref(null)
+
+watch(() => props.modelValue, () => { imgError.value = false })
 
 async function onFileSelect(e) {
   const file = e.target.files?.[0]
@@ -23,6 +26,7 @@ async function onFileSelect(e) {
     form.append('file', file)
     const res = await api.post('/upload', form)
     emit('update:modelValue', res.data.url)
+    imgError.value = false
   } catch (err) {
     alert(err.response?.data?.detail || '上傳失敗')
   } finally {
@@ -61,11 +65,21 @@ async function onFileSelect(e) {
         />
       </label>
     </div>
-    <img
-      v-if="modelValue"
-      :src="modelValue"
-      class="mt-2 w-36 h-36 object-cover rounded border"
-      @error="$emit('update:modelValue', '')"
-    />
+    <div v-if="modelValue && !imgError" class="mt-2 relative">
+      <img
+        :src="modelValue"
+        class="w-36 h-36 object-cover rounded border"
+        @error="imgError = true"
+      />
+      <button
+        type="button"
+        @click="$emit('update:modelValue', ''); imgError = false"
+        class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+      >&times;</button>
+    </div>
+    <div v-else-if="modelValue && imgError" class="mt-2 flex items-center gap-2 text-xs text-red-500">
+      <span>圖片無法載入</span>
+      <button type="button" @click="$emit('update:modelValue', ''); imgError = false" class="underline">清除</button>
+    </div>
   </div>
 </template>

@@ -11,12 +11,28 @@ const loading = ref(true)
 let idleStart = null
 const IDLE_THRESHOLD = 30000
 
+const categoryPresets = ['卡牌', '公仔', '吊飾', '徽章', '立牌', '海報', '其他']
+const customCategoryItems = ref({})
+
+const GRADE_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+
+function gradeName(index) {
+  return GRADE_LETTERS[index] + '賞'
+}
+
+function gradeIndex(name) {
+  const m = name.match(/^([A-Z])賞$/)
+  if (m) return GRADE_LETTERS.indexOf(m[1])
+  return -1
+}
+
 async function verifyAuth() {
   try {
     await api.get('/auth/me')
     const res = await api.get(`/pools/${route.params.id}`)
     pool.value = res.data
-  } catch (_) {
+  } catch (e) {
+    console.error('Auth check failed:', e)
     router.push('/admin')
   } finally {
     loading.value = false
@@ -44,6 +60,7 @@ function onVisibilityChange() {
     }
   }
 }
+
 const editing = ref(false)
 const saving = ref(false)
 
@@ -54,10 +71,8 @@ const editForm = ref({
   allow_shipping: true,
   shipping_fee: 0,
   free_shipping_threshold: 0,
-  last_one_prize_name: '',
-  last_one_prize_image: '',
   payment_methods: [],
-  prize_grades: [],
+  grades: [],
 })
 
 const error = ref('')
@@ -92,19 +107,18 @@ function startEdit() {
     allow_shipping: p.allow_shipping,
     shipping_fee: p.shipping_fee,
     free_shipping_threshold: p.free_shipping_threshold,
-    last_one_prize_name: p.last_one_prize_name || '',
-    last_one_prize_image: p.last_one_prize_image || '',
     payment_methods: (p.payment_methods || '').split(',').filter(Boolean),
-    prize_grades: p.prize_grades.map(g => ({
+    grades: (p.prize_grades || []).map(g => ({
       id: g.id,
-      grade_name: g.grade_name,
-      item_name: g.item_name,
-      item_type: g.item_type,
-      initial_stock: g.initial_stock,
-      cost: g.cost,
-      market_price: g.market_price,
-      image_url: g.image_url || '',
-      sort_order: g.sort_order,
+      prize_items: (g.prize_items || []).map(item => ({
+        id: item.id,
+        name: item.name,
+        stock: item.stock,
+        category: item.category,
+        cost: item.cost,
+        market_price: item.market_price,
+        image_url: item.image_url || '',
+      })),
     })),
   }
   error.value = ''
@@ -140,7 +154,28 @@ async function saveEdit() {
   }
   try {
     if (pool.value.status === 'draft') {
-      const payload = { ...editForm.value, payment_methods: editForm.value.payment_methods.join(',') }
+      const payload = {
+        name: editForm.value.name,
+        banner_image: editForm.value.banner_image || null,
+        single_price: editForm.value.single_price,
+        allow_shipping: editForm.value.allow_shipping,
+        shipping_fee: editForm.value.shipping_fee,
+        free_shipping_threshold: editForm.value.free_shipping_threshold,
+        payment_methods: editForm.value.payment_methods.join(','),
+        prize_grades: editForm.value.grades.map((g, i) => ({
+          grade_name: gradeName(i),
+          sort_order: i,
+          prize_items: g.prize_items.map((item, j) => ({
+            name: item.name,
+            stock: Number(item.stock) || 0,
+            category: item.category || '卡牌',
+            cost: Number(item.cost) || 0,
+            market_price: Number(item.market_price) || 0,
+            image_url: item.image_url || null,
+            sort_order: j,
+          })),
+        })),
+      }
       const res = await api.patch(`/pools/${route.params.id}`, payload)
       pool.value = res.data
     } else {
@@ -151,23 +186,10 @@ async function saveEdit() {
         allow_shipping: editForm.value.allow_shipping,
         shipping_fee: editForm.value.shipping_fee,
         free_shipping_threshold: editForm.value.free_shipping_threshold,
-        last_one_prize_name: editForm.value.last_one_prize_name || null,
-        last_one_prize_image: editForm.value.last_one_prize_image || null,
         payment_methods: editForm.value.payment_methods.join(','),
       }
-      const gradePayload = editForm.value.prize_grades.map(g => ({
-        id: g.id,
-        grade_name: g.grade_name,
-        item_name: g.item_name,
-        item_type: g.item_type,
-        image_url: g.image_url || null,
-        cost: g.cost,
-        market_price: g.market_price,
-        sort_order: g.sort_order,
-      }))
       const [poolRes] = await Promise.all([
         api.patch(`/pools/${route.params.id}`, poolPayload),
-        api.patch(`/pools/${route.params.id}/grades`, gradePayload),
       ])
       pool.value = poolRes.data
     }
@@ -212,26 +234,24 @@ async function shufflePool() {
 }
 
 function addGrade() {
-  const idx = editForm.value.prize_grades.length
-  editForm.value.prize_grades.push({
-    grade_name: '',
-    item_name: '',
-    item_type: '其他',
-    initial_stock: 1,
-    cost: 0,
-    market_price: 0,
-    image_url: '',
-    sort_order: idx,
-  })
+  editForm.value.grades.push({ prize_items: [{ name: '', stock: 1, category: '卡牌', cost: 0, market_price: 0, image_url: '' }] })
 }
 
 function removeGrade(i) {
-  if (editForm.value.prize_grades.length <= 2) return
-  editForm.value.prize_grades.splice(i, 1)
+  if (editForm.value.grades.length <= 2) return
+  editForm.value.grades.splice(i, 1)
+}
+
+function addItem(gradeIndex) {
+  editForm.value.grades[gradeIndex].prize_items.push({ name: '', stock: 1, category: '卡牌', cost: 0, market_price: 0, image_url: '' })
+}
+
+function removeItem(gradeIndex, itemIndex) {
+  editForm.value.grades[gradeIndex].prize_items.splice(itemIndex, 1)
 }
 
 const totalTickets = computed(() =>
-  editForm.value.prize_grades.reduce((s, g) => s + (Number(g.initial_stock) || 0), 0)
+  editForm.value.grades.reduce((s, g) => s + g.prize_items.reduce((si, item) => si + (Number(item.stock) || 0), 0), 0)
 )
 
 const isDraft = computed(() => pool.value?.status === 'draft')
@@ -310,60 +330,68 @@ const isDraft = computed(() => pool.value?.status === 'draft')
           <label class="block text-sm font-medium text-gray-700 mb-1">單抽售價</label>
           <input v-model.number="editForm.single_price" type="number" class="w-full border rounded-lg px-3 py-2 text-sm" />
         </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">最後賞名稱</label>
-          <input v-model="editForm.last_one_prize_name" class="w-full border rounded-lg px-3 py-2 text-sm" placeholder="例如：最後賞 大布偶" />
-        </div>
-        <div class="col-span-2">
-          <ImageUploader v-model="editForm.last_one_prize_image" label="最後賞圖片" />
-        </div>
       </div>
 
       <!-- Prize Grades Edit -->
       <div class="border-t pt-4 mb-4">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-md font-semibold text-gray-900">獎項設定</h3>
-          <button type="button" @click="addGrade" class="text-sm text-indigo-600 hover:text-indigo-800">+ 新增獎項</button>
+          <button type="button" @click="addGrade" class="text-sm text-indigo-600 hover:text-indigo-800">+ 新增賞別</button>
         </div>
-        <div v-for="(g, i) in editForm.prize_grades" :key="i" class="border rounded-lg p-4 mb-3">
+        <div v-for="(g, gi) in editForm.grades" :key="gi" class="border rounded-xl p-4 mb-3"
+          :class="gradeName(gi) === 'A賞' ? 'border-indigo-200 bg-indigo-50/30' : gradeName(gi) === 'B賞' ? 'border-purple-200 bg-purple-50/30' : 'border-gray-200'">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-sm font-medium text-gray-700">獎項 {{ i + 1 }}</span>
-            <button v-if="editForm.prize_grades.length > 2" type="button" @click="removeGrade(i)" class="text-xs text-red-500">刪除</button>
+            <span class="text-sm font-bold"
+              :class="gradeName(gi) === 'A賞' ? 'text-indigo-700' : gradeName(gi) === 'B賞' ? 'text-purple-700' : 'text-gray-700'">
+              賞別 {{ gi + 1 }} - {{ gradeName(gi) }}
+            </span>
+            <div class="flex gap-2">
+              <button type="button" @click="addItem(gi)" class="text-xs text-indigo-500">+ 子獎項</button>
+              <button v-if="editForm.grades.length > 2" type="button" @click="removeGrade(gi)" class="text-xs text-red-500">刪除此賞</button>
+            </div>
           </div>
-          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">獎項等級</label>
-              <input v-model="g.grade_name" class="w-full border rounded-lg px-2 py-1.5 text-sm" placeholder="A賞" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">獎品名稱</label>
-              <input v-model="g.item_name" class="w-full border rounded-lg px-2 py-1.5 text-sm" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">類型</label>
-              <select v-model="g.item_type" class="w-full border rounded-lg px-2 py-1.5 text-sm">
-                <option>公仔</option>
-                <option>吊飾</option>
-                <option>徽章</option>
-                <option>立牌</option>
-                <option>海報</option>
-                <option>其他</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">庫存</label>
-              <input v-model.number="g.initial_stock" type="number" min="1" class="w-full border rounded-lg px-2 py-1.5 text-sm" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">成本</label>
-              <input v-model.number="g.cost" type="number" class="w-full border rounded-lg px-2 py-1.5 text-sm" />
-            </div>
-            <div>
-              <label class="block text-xs text-gray-500 mb-1">市價</label>
-              <input v-model.number="g.market_price" type="number" class="w-full border rounded-lg px-2 py-1.5 text-sm" />
-            </div>
-            <div class="col-span-2 md:col-span-4">
-              <ImageUploader v-model="g.image_url" label="獎賞圖片（可選）" />
+          <div class="space-y-2 ml-2">
+            <div v-for="(item, ii) in g.prize_items" :key="ii"
+              class="bg-white border border-gray-200 rounded-lg p-3"
+            >
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-xs text-gray-500">子獎項 #{{ ii + 1 }}</span>
+                <button v-if="g.prize_items.length > 1" type="button" @click="removeItem(gi, ii)" class="text-xs text-red-400">刪除</button>
+              </div>
+              <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">品名</label>
+                  <input v-model="item.name" class="w-full border rounded-lg px-2 py-1.5 text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">類別</label>
+                  <div class="flex gap-1">
+                    <select v-if="!customCategoryItems[gi + '-' + ii]" v-model="item.category" class="flex-1 border rounded-lg px-2 py-1.5 text-sm">
+                      <option v-for="cat in categoryPresets" :key="cat" :value="cat">{{ cat }}</option>
+                      <option value="__custom__">自訂...</option>
+                    </select>
+                    <input v-else v-model="item.category" class="flex-1 border rounded-lg px-2 py-1.5 text-sm" placeholder="自訂類別" />
+                    <button type="button" @click="customCategoryItems[gi + '-' + ii] = !customCategoryItems[gi + '-' + ii]; if (customCategoryItems[gi + '-' + ii]) item.category = ''" class="text-xs text-indigo-500 whitespace-nowrap">
+                      {{ customCategoryItems[gi + '-' + ii] ? '預設' : '自訂' }}
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">庫存</label>
+                  <input v-model.number="item.stock" type="number" min="1" class="w-full border rounded-lg px-2 py-1.5 text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">成本</label>
+                  <input v-model.number="item.cost" type="number" class="w-full border rounded-lg px-2 py-1.5 text-sm" />
+                </div>
+                <div>
+                  <label class="block text-xs text-gray-500 mb-1">市價</label>
+                  <input v-model.number="item.market_price" type="number" class="w-full border rounded-lg px-2 py-1.5 text-sm" />
+                </div>
+                <div class="col-span-2 md:col-span-5">
+                  <ImageUploader v-model="item.image_url" label="獎品圖片（可選）" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -419,32 +447,36 @@ const isDraft = computed(() => pool.value?.status === 'draft')
     <!-- View Mode: Prize Grades Table -->
     <div v-if="!editing" class="bg-white rounded-xl shadow-sm border p-6 mb-6">
       <h2 class="text-lg font-semibold text-gray-900 mb-4">獎項配置</h2>
-      <table class="w-full text-sm">
-        <thead class="bg-gray-50 border-b">
-          <tr>
-            <th class="text-left px-3 py-2 font-medium text-gray-600">等級</th>
-            <th class="text-left px-3 py-2 font-medium text-gray-600">品名</th>
-            <th class="text-left px-3 py-2 font-medium text-gray-600">圖片</th>
-            <th class="text-left px-3 py-2 font-medium text-gray-600">類型</th>
-            <th class="text-right px-3 py-2 font-medium text-gray-600">庫存</th>
-            <th class="text-right px-3 py-2 font-medium text-gray-600">成本</th>
-            <th class="text-right px-3 py-2 font-medium text-gray-600">市價</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y">
-          <tr v-for="g in pool.prize_grades" :key="g.id">
-            <td class="px-3 py-2 font-medium">{{ g.grade_name }}</td>
-            <td class="px-3 py-2 text-gray-600">{{ g.item_name }}</td>
-            <td class="px-3 py-2">
-              <img v-if="g.image_url" :src="g.image_url" class="w-36 h-36 object-cover rounded" />
-            </td>
-            <td class="px-3 py-2 text-gray-500">{{ g.item_type }}</td>
-            <td class="px-3 py-2 text-right">{{ g.remaining_stock }} / {{ g.initial_stock }}</td>
-            <td class="px-3 py-2 text-right">${{ g.cost }}</td>
-            <td class="px-3 py-2 text-right">${{ g.market_price }}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div v-for="g in pool.prize_grades" :key="g.id" class="mb-4 last:mb-0">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-sm font-bold text-gray-900">{{ g.grade_name }}</span>
+          <span class="text-xs text-gray-400">剩餘 {{ g.remaining_stock }}</span>
+        </div>
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b">
+            <tr>
+              <th class="text-left px-3 py-1.5 font-medium text-gray-600">品名</th>
+              <th class="text-left px-3 py-1.5 font-medium text-gray-600">類別</th>
+              <th class="text-left px-3 py-1.5 font-medium text-gray-600">圖片</th>
+              <th class="text-right px-3 py-1.5 font-medium text-gray-600">庫存</th>
+              <th class="text-right px-3 py-1.5 font-medium text-gray-600">成本</th>
+              <th class="text-right px-3 py-1.5 font-medium text-gray-600">市價</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y">
+            <tr v-for="item in g.prize_items" :key="item.id">
+              <td class="px-3 py-1.5 text-gray-800">{{ item.name }}</td>
+              <td class="px-3 py-1.5 text-gray-500">{{ item.category }}</td>
+              <td class="px-3 py-1.5">
+                <img v-if="item.image_url" :src="item.image_url" class="w-16 h-16 object-cover rounded" />
+              </td>
+              <td class="px-3 py-1.5 text-right">{{ item.remaining_stock }} / {{ item.stock }}</td>
+              <td class="px-3 py-1.5 text-right">${{ item.cost }}</td>
+              <td class="px-3 py-1.5 text-right">${{ item.market_price }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Actions -->

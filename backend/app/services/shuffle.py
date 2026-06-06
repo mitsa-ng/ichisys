@@ -8,20 +8,25 @@ if TYPE_CHECKING:
 
 def build_ticket_plan(pool: "Pool", prize_grades: list["PrizeGrade"]) -> list[dict]:
     """
-    Build a flat list of ticket payloads based on prize grade remaining_stock,
+    Build a flat list of ticket payloads based on PrizeItem remaining_stock,
     then shuffle them randomly (Fisher-Yates).
-    Each ticket maps to a serial_number and a prize_grade_id.
+    Each ticket maps to a serial_number, prize_grade_id, and prize_item_id.
     """
     ticket_plan: list[dict] = []
 
     for grade in prize_grades:
-        for _ in range(grade.remaining_stock):
-            ticket_plan.append({
-                "pool_id": pool.id,
-                "prize_grade_id": grade.id,
-                "serial_number": 0,
-                "is_drawn": False,
-            })
+        grade.remaining_stock = 0
+        for item in grade.prize_items:
+            item.remaining_stock = item.stock
+            grade.remaining_stock += item.stock
+            for _ in range(item.stock):
+                ticket_plan.append({
+                    "pool_id": pool.id,
+                    "prize_grade_id": grade.id,
+                    "prize_item_id": item.id,
+                    "serial_number": 0,
+                    "is_drawn": False,
+                })
 
     random.shuffle(ticket_plan)
 

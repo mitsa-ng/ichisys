@@ -8,6 +8,7 @@ from app.dependencies import get_current_admin
 from app.models.admin import Admin
 from app.models.pool import Pool
 from app.models.prize_grade import PrizeGrade
+from app.models.prize_item import PrizeItem
 from app.models.ticket import Ticket
 from app.models.warehouse import VirtualWarehouse
 from app.schemas.pool import (
@@ -76,7 +77,7 @@ async def create_pool(
         )
 
     pool_code = generate_pool_code()
-    total = sum(g.initial_stock for g in body.prize_grades)
+    total = sum(item.stock for g in body.prize_grades for item in g.prize_items)
 
     pool = Pool(
         code=pool_code,
@@ -87,8 +88,6 @@ async def create_pool(
         allow_shipping=body.allow_shipping,
         shipping_fee=body.shipping_fee,
         free_shipping_threshold=body.free_shipping_threshold,
-        last_one_prize_name=body.last_one_prize_name,
-        last_one_prize_image=body.last_one_prize_image,
         status="draft",
         total_tickets=total,
         remaining_tickets=total,
@@ -101,22 +100,32 @@ async def create_pool(
             code=generate_grade_code(),
             pool_id=pool.id,
             grade_name=g.grade_name,
-            item_name=g.item_name,
-            item_type=g.item_type,
-            initial_stock=g.initial_stock,
-            remaining_stock=g.initial_stock,
-            cost=g.cost,
-            market_price=g.market_price,
-            image_url=g.image_url,
             sort_order=g.sort_order or i,
         )
         db.add(grade)
+        await db.flush()
+
+        for item in g.prize_items:
+            pi = PrizeItem(
+                prize_grade_id=grade.id,
+                name=item.name,
+                stock=item.stock,
+                remaining_stock=item.stock,
+                category=item.category,
+                cost=item.cost,
+                market_price=item.market_price,
+                image_url=item.image_url,
+                sort_order=item.sort_order,
+            )
+            db.add(pi)
 
     await db.commit()
 
     result = await db.execute(
         select(Pool)
-        .options(selectinload(Pool.prize_grades))
+        .options(
+            selectinload(Pool.prize_grades).selectinload(PrizeGrade.prize_items)
+        )
         .where(Pool.id == pool.id)
     )
     pool = result.scalar_one()
@@ -128,7 +137,9 @@ async def create_pool(
 async def get_pool(pool_id: str, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Pool)
-        .options(selectinload(Pool.prize_grades))
+        .options(
+            selectinload(Pool.prize_grades).selectinload(PrizeGrade.prize_items)
+        )
         .where(Pool.id == pool_id)
     )
     pool = result.scalar_one_or_none()
@@ -145,7 +156,11 @@ async def update_pool(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Pool).options(selectinload(Pool.prize_grades)).where(Pool.id == pool_id)
+        select(Pool)
+        .options(
+            selectinload(Pool.prize_grades).selectinload(PrizeGrade.prize_items)
+        )
+        .where(Pool.id == pool_id)
     )
     pool = result.scalar_one_or_none()
     if not pool:
@@ -165,6 +180,11 @@ async def update_pool(
 
     if prize_grades_data is not None:
         async with db.begin_nested():
+            old_grade_ids = await db.execute(
+                select(PrizeGrade.id).where(PrizeGrade.pool_id == pool_id)
+            )
+            for gid in old_grade_ids.scalars().all():
+                await db.execute(sa_delete(PrizeItem).where(PrizeItem.prize_grade_id == gid))
             await db.execute(sa_delete(PrizeGrade).where(PrizeGrade.pool_id == pool_id))
             total = 0
             new_grades = []
@@ -173,18 +193,28 @@ async def update_pool(
                     code=generate_grade_code(),
                     pool_id=pool.id,
                     grade_name=g["grade_name"],
-                    item_name=g["item_name"],
-                    item_type=g["item_type"],
-                    initial_stock=g["initial_stock"],
-                    remaining_stock=g["initial_stock"],
-                    cost=g.get("cost", 0),
-                    market_price=g.get("market_price", 0),
-                    image_url=g.get("image_url"),
                     sort_order=g.get("sort_order", i),
                 )
                 db.add(grade)
+                await db.flush()
+
+                items_data = g.get("prize_items", [])
+                for item in items_data:
+                    pi = PrizeItem(
+                        prize_grade_id=grade.id,
+                        name=item["name"],
+                        stock=item["stock"],
+                        remaining_stock=item["stock"],
+                        category=item.get("category", "卡牌"),
+                        cost=item.get("cost", 0),
+                        market_price=item.get("market_price", 0),
+                        image_url=item.get("image_url"),
+                        sort_order=item.get("sort_order", 0),
+                    )
+                    db.add(pi)
+                    total += item["stock"]
+
                 new_grades.append(grade)
-                total += g["initial_stock"]
             pool.total_tickets = total
             pool.remaining_tickets = total
         pool.prize_grades = new_grades
@@ -203,7 +233,11 @@ async def update_pool_grades(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Pool).options(selectinload(Pool.prize_grades)).where(Pool.id == pool_id)
+        select(Pool)
+        .options(
+            selectinload(Pool.prize_grades).selectinload(PrizeGrade.prize_items)
+        )
+        .where(Pool.id == pool_id)
     )
     pool = result.scalar_one_or_none()
     if not pool:
@@ -220,16 +254,6 @@ async def update_pool_grades(
             )
         if update.grade_name is not None:
             grade.grade_name = update.grade_name
-        if update.item_name is not None:
-            grade.item_name = update.item_name
-        if update.item_type is not None:
-            grade.item_type = update.item_type
-        if update.image_url is not None:
-            grade.image_url = update.image_url
-        if update.cost is not None:
-            grade.cost = update.cost
-        if update.market_price is not None:
-            grade.market_price = update.market_price
         if update.sort_order is not None:
             grade.sort_order = update.sort_order
 
@@ -263,7 +287,11 @@ async def shuffle_pool(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Pool).options(selectinload(Pool.prize_grades)).where(Pool.id == pool_id)
+        select(Pool)
+        .options(
+            selectinload(Pool.prize_grades).selectinload(PrizeGrade.prize_items)
+        )
+        .where(Pool.id == pool_id)
     )
     pool = result.scalar_one_or_none()
     if not pool:
@@ -281,11 +309,7 @@ async def shuffle_pool(
     )
 
     grades = pool.prize_grades
-    for grade in grades:
-        grade.remaining_stock = grade.initial_stock
-    await db.flush()
-
-    total = sum(g.initial_stock for g in grades)
+    total = sum(item.stock for g in grades for item in g.prize_items)
     ticket_plan = build_ticket_plan(pool, grades)
 
     new_tickets = [Ticket(**t) for t in ticket_plan]
@@ -308,7 +332,11 @@ async def publish_pool(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Pool).options(selectinload(Pool.prize_grades)).where(Pool.id == pool_id)
+        select(Pool)
+        .options(
+            selectinload(Pool.prize_grades).selectinload(PrizeGrade.prize_items)
+        )
+        .where(Pool.id == pool_id)
     )
     pool = result.scalar_one_or_none()
     if not pool:
@@ -318,7 +346,7 @@ async def publish_pool(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Pool is not in draft status")
 
     grades = pool.prize_grades
-    total = sum(g.initial_stock for g in grades)
+    total = sum(item.stock for g in grades for item in g.prize_items)
     ticket_plan = build_ticket_plan(pool, grades)
 
     new_tickets = [Ticket(**t) for t in ticket_plan]

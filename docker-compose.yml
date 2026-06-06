@@ -2,18 +2,25 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: ichiban
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-ichiban}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     ports:
       - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 3s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   backend:
     build:
@@ -24,32 +31,49 @@ services:
       - ./backend:/app
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/ichiban
-      DATABASE_URL_SYNC: postgresql+psycopg2://postgres:postgres@db:5432/ichiban
-      SECRET_KEY: dev-secret-key-change-in-production
-      ADMIN_EMAIL: admin@ichiban.com
-      ADMIN_PASSWORD: admin123
-      CORS_ORIGINS: http://localhost:5173,http://localhost:3000
-      SITE_URL: http://localhost:8000
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://postgres:postgres@db:5432/ichiban}
+      DATABASE_URL_SYNC: ${DATABASE_URL_SYNC:-postgresql+psycopg2://postgres:postgres@db:5432/ichiban}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@ichiban.com}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      SITE_URL: ${SITE_URL:-http://localhost:8000}
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+      - ./frontend/vite.config.js:/app/vite.config.js
     ports:
       - "5173:5173"
     environment:
-      VITE_API_URL: http://localhost:8000/api
+      VITE_PROXY_TARGET: ${VITE_PROXY_TARGET:-http://backend:8000}
     depends_on:
       - backend
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
 volumes:
   pgdata:

@@ -17,6 +17,9 @@ const error = ref('')
 const waitingPayment = ref(false)
 const userId = ref(localStorage.getItem('user_id') || 'user_' + Math.random().toString(36).slice(2, 8))
 let eventSource = null
+const expandedGrades = ref({})
+const drawLog = ref([])
+const showRemaining = ref(false)
 
 if (!localStorage.getItem('user_id')) {
   localStorage.setItem('user_id', userId.value)
@@ -32,7 +35,18 @@ async function loadPool() {
     tickets.value = ticketRes.data
     const methods = (poolRes.data.payment_methods || '').split(',').filter(Boolean)
     if (methods.length > 0) selectedMethod.value = methods[0]
-  } catch (_) {}
+  } catch (e) {
+    console.error('Failed to load pool:', e)
+  }
+}
+
+async function loadDrawLog() {
+  try {
+    const res = await api.get('/admin/draws', { params: { pool_id: route.params.id, limit: 20 } })
+    drawLog.value = res.data || []
+  } catch (e) {
+    console.error('Failed to load draw log:', e)
+  }
 }
 
 const remaining = computed(() => pool.value?.remaining_tickets ?? 0)
@@ -45,8 +59,13 @@ const paymentMethods = computed(() => (pool.value?.payment_methods || '').split(
 
 const methodLabels = { onsite: '現場付款', linepay: 'LinePay', draw_now: '抽就對了' }
 
+function toggleExpand(gradeId) {
+  expandedGrades.value[gradeId] = !expandedGrades.value[gradeId]
+}
+
 onMounted(async () => {
   await loadPool()
+  await loadDrawLog()
   loading.value = false
 
   eventSource = new EventSource('/api/events')
@@ -59,13 +78,22 @@ onMounted(async () => {
       }
       if ((event === 'pool_update' && data.pool_id === route.params.id) || event === 'draw_result') {
         loadPool()
+        loadDrawLog()
       }
-    } catch (_) {}
+    } catch (e) {
+      console.error('EventSource message parse error:', e)
+    }
+  }
+  eventSource.onerror = () => {
+    console.warn('EventSource connection error, will auto-reconnect')
   }
 })
 
 onUnmounted(() => {
-  if (eventSource) eventSource.close()
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
 })
 
 function toggleNumber(n) {
@@ -125,6 +153,7 @@ async function doDraw() {
     waitingPayment.value = false
 
     await loadPool()
+    await loadDrawLog()
   } catch (e) {
     error.value = e.response?.data?.detail || e.message || '抽獎失敗'
   }
@@ -200,17 +229,73 @@ function closeResult() {
       </div>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border p-6 mb-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-4">獎項配置</h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div v-for="g in grades" :key="g.id" class="border rounded-lg p-3 text-center">
-          <div class="text-sm font-bold text-gray-900 mb-1">{{ g.grade_name }}</div>
-          <div class="text-xs text-gray-500">{{ g.item_name }}</div>
-          <div class="text-xs text-gray-400 mt-1">殘 {{ g.remaining_stock }} / 共 {{ g.initial_stock }}</div>
+    <!-- 跑馬燈 - Recent Draws -->
+    <div v-if="drawLog.length" class="bg-white rounded-xl shadow-sm border p-4 mb-6 overflow-hidden">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">即時開獎</span>
+        <span class="text-xs text-gray-400">|</span>
+        <div class="overflow-hidden flex-1 relative h-5">
+          <div class="animate-marquee whitespace-nowrap absolute">
+            <span v-for="(d, i) in drawLog" :key="i" class="inline-flex items-center gap-2 mx-4 text-sm">
+              <span class="text-gray-400">{{ d.drawn_at ? new Date(d.drawn_at).toLocaleTimeString('zh-TW') : '' }}</span>
+              <span class="font-mono text-xs text-gray-500">#{{ d.serial_number }}</span>
+              <span class="font-semibold" :class="d.grade_name === 'A賞' ? 'text-red-500' : 'text-indigo-600'">{{ d.grade_name }}</span>
+              <span class="text-gray-500">{{ d.item_name }}</span>
+            </span>
+          </div>
         </div>
       </div>
     </div>
 
+    <!-- 獎項配置 - Expandable with sub-items -->
+    <div class="bg-white rounded-xl shadow-sm border p-6 mb-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900">獎項配置</h2>
+        <button @click="showRemaining = !showRemaining" class="text-sm text-indigo-600 hover:text-indigo-800">
+          {{ showRemaining ? '收起詳情' : '展開詳情' }}
+        </button>
+      </div>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div
+          v-for="g in grades"
+          :key="g.id"
+          class="border rounded-lg p-3 text-center cursor-pointer hover:shadow-sm transition"
+          @click="toggleExpand(g.id)"
+        >
+          <div class="text-sm font-bold text-gray-900 mb-1">{{ g.grade_name }}</div>
+          <div v-if="g.prize_items?.length" class="mb-2">
+            <img v-if="g.prize_items[0]?.image_url" :src="g.prize_items[0].image_url" class="w-16 h-16 object-cover rounded mx-auto" />
+          </div>
+          <div class="text-xs text-gray-500">{{ g.prize_items?.[0]?.name || '' }}</div>
+          <div class="text-xs text-gray-400 mt-1">殘 {{ g.remaining_stock }} 張</div>
+
+          <!-- Expanded sub-items -->
+          <div v-if="expandedGrades[g.id]" class="mt-3 pt-3 border-t text-left">
+            <div v-for="(item, ii) in g.prize_items" :key="item.id" class="text-xs mb-2 pb-2 border-b last:border-b-0">
+              <div class="font-medium text-gray-800">{{ item.name }}</div>
+              <div class="flex justify-between mt-1">
+                <span class="text-gray-500">類別</span>
+                <span class="text-gray-700">{{ item.category }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-500">成本</span>
+                <span class="text-gray-700">${{ item.cost }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-500">市價</span>
+                <span class="text-gray-700">${{ item.market_price }}</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-500">剩餘</span>
+                <span class="text-gray-700">{{ item.remaining_stock }} / {{ item.stock }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 選號區 -->
     <div class="bg-white rounded-xl shadow-sm border p-6 mb-6">
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-gray-900">選號區</h2>
@@ -343,31 +428,43 @@ function closeResult() {
       </button>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border p-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-4">獎賞一覽</h2>
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="border-b">
-            <th class="text-left px-3 py-2 font-medium text-gray-600">獎賞等級與名稱</th>
-            <th class="text-left px-3 py-2 font-medium text-gray-600">圖片</th>
-            <th class="text-right px-3 py-2 font-medium text-gray-600">剩餘狀態</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y">
-          <tr v-for="g in grades" :key="g.id">
-            <td class="px-3 py-2">
-              <span class="font-medium text-gray-900">{{ g.grade_name }}</span>
-              <span class="text-gray-500 ml-1">{{ g.item_name }}</span>
-            </td>
-            <td class="px-3 py-2">
-              <img v-if="g.image_url" :src="g.image_url" class="w-48 h-48 object-cover rounded" />
-            </td>
-            <td class="px-3 py-2 text-right">
-              <span class="text-gray-700">剩 {{ g.remaining_stock }} / 共 {{ g.initial_stock }}</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- 獎賞一覽 table updated for sub-items -->
+    <div class="bg-white rounded-xl shadow-sm border p-6 mt-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-900">獎賞一覽</h2>
+        <a :href="`/pool/${route.params.id}/prizes`" class="text-sm text-indigo-600 hover:text-indigo-800">完整檢視 &rarr;</a>
+      </div>
+      <div v-for="g in grades" :key="g.id" class="mb-3 last:mb-0">
+        <div class="text-sm font-bold text-gray-800 mb-1">{{ g.grade_name }} <span class="text-xs text-gray-400 font-normal">剩餘 {{ g.remaining_stock }}</span></div>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="border-b">
+              <th class="text-left px-2 py-1 font-medium text-gray-600">品名</th>
+              <th class="text-left px-2 py-1 font-medium text-gray-600">圖片</th>
+              <th class="text-right px-2 py-1 font-medium text-gray-600">剩餘狀態</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y">
+            <tr v-for="item in g.prize_items" :key="item.id">
+              <td class="px-2 py-1 text-gray-700">{{ item.name }}</td>
+              <td class="px-2 py-1">
+                <img v-if="item.image_url" :src="item.image_url" class="w-14 h-14 object-cover rounded" />
+              </td>
+              <td class="px-2 py-1 text-right text-gray-600">剩 {{ item.remaining_stock }} / 共 {{ item.stock }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+.animate-marquee {
+  animation: marquee 20s linear infinite;
+}
+</style>

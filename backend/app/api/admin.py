@@ -10,13 +10,89 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.database import get_db
+from app.dependencies import get_current_admin
+from app.models.admin import Admin
 from app.models.payment import Payment
 from app.models.pool import Pool
 from app.models.ticket import Ticket
 from app.models.prize_grade import PrizeGrade
-from app.schemas.admin import DrawRecordResponse
+from app.models.prize_item import PrizeItem
+from app.schemas.admin import AdminCreate, AdminListResponse, AdminUpdate, DrawRecordResponse
+from app.services.auth import hash_password
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
+
+
+@router.get("/accounts", response_model=list[AdminListResponse])
+async def list_admins(
+    admin: Admin = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Admin).order_by(Admin.created_at.desc()))
+    admins = result.scalars().all()
+    return [AdminListResponse.model_validate(a) for a in admins]
+
+
+@router.post("/accounts", response_model=AdminListResponse, status_code=status.HTTP_201_CREATED)
+async def create_admin(
+    body: AdminCreate,
+    admin: Admin = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    existing = await db.execute(select(Admin).where(Admin.email == body.email))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Email already exists")
+    new_admin = Admin(
+        email=body.email,
+        hashed_password=hash_password(body.password),
+        display_name=body.display_name,
+    )
+    db.add(new_admin)
+    await db.commit()
+    await db.refresh(new_admin)
+    return AdminListResponse.model_validate(new_admin)
+
+
+@router.patch("/accounts/{admin_id}", response_model=AdminListResponse)
+async def update_admin(
+    admin_id: str,
+    body: AdminUpdate,
+    current_admin: Admin = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(Admin).where(Admin.id == admin_id))
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Admin not found")
+    if body.email is not None:
+        existing = await db.execute(select(Admin).where(Admin.email == body.email, Admin.id != admin_id))
+        if existing.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail="Email already exists")
+        target.email = body.email
+    if body.display_name is not None:
+        target.display_name = body.display_name
+    if body.password is not None:
+        target.hashed_password = hash_password(body.password)
+    await db.commit()
+    await db.refresh(target)
+    return AdminListResponse.model_validate(target)
+
+
+@router.delete("/accounts/{admin_id}")
+async def delete_admin(
+    admin_id: str,
+    current_admin: Admin = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db),
+):
+    if current_admin.id == admin_id:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+    result = await db.execute(select(Admin).where(Admin.id == admin_id))
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Admin not found")
+    await db.delete(target)
+    await db.commit()
+    return {"message": "Admin deleted"}
 
 
 async def _fetch_draws(
@@ -27,7 +103,10 @@ async def _fetch_draws(
 ) -> list[DrawRecordResponse]:
     query = (
         select(Ticket)
-        .options(selectinload(Ticket.prize_grade))
+        .options(
+            selectinload(Ticket.prize_grade),
+            selectinload(Ticket.prize_item),
+        )
         .where(Ticket.is_drawn == True)
         .order_by(Ticket.drawn_at.desc())
     )
@@ -75,7 +154,8 @@ async def _fetch_draws(
         pool = pools_map.get(t.pool_id)
         payment = payment_map.get(t.order_id) if t.order_id else None
         grade = t.prize_grade
-        cost = grade.cost if grade else 0
+        prize_item = t.prize_item
+        cost = prize_item.cost if prize_item else 0
         single_price = pool.single_price if pool else 0
         order_count = order_counts.get(t.order_id, 1) if t.order_id else 1
         is_multi = order_count > 1
@@ -86,7 +166,7 @@ async def _fetch_draws(
             pool_code=pool.code if pool else "",
             serial_number=t.serial_number,
             grade_name=grade.grade_name if grade else None,
-            item_name=grade.item_name if grade else None,
+            item_name=prize_item.name if prize_item else None,
             single_price=single_price,
             cost=cost,
             profit=single_price - cost,

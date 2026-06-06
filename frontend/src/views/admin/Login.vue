@@ -17,7 +17,9 @@ onMounted(async () => {
     if (res.data.needs_setup) {
       router.push('/admin/setup')
     }
-  } catch (_) {}
+  } catch (e) {
+    console.error('Setup status check failed:', e)
+  }
   finally { checking.value = false }
 })
 

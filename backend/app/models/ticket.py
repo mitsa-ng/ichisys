@@ -23,6 +23,9 @@ class Ticket(Base):
     prize_grade_id: Mapped[str] = mapped_column(
         String, ForeignKey("prize_grades.id"), nullable=True
     )
+    prize_item_id: Mapped[str] = mapped_column(
+        String, ForeignKey("prize_items.id"), nullable=True
+    )
     serial_number: Mapped[int] = mapped_column(Integer, nullable=False)
     is_drawn: Mapped[bool] = mapped_column(Boolean, default=False)
     user_id: Mapped[str] = mapped_column(String(100), nullable=True)
@@ -34,4 +37,5 @@ class Ticket(Base):
 
     pool = relationship("Pool", back_populates="tickets")
     prize_grade = relationship("PrizeGrade", back_populates="tickets")
+    prize_item = relationship("PrizeItem", back_populates="tickets")
     warehouse_entry = relationship("VirtualWarehouse", back_populates="ticket", uselist=False, cascade="all, delete-orphan")

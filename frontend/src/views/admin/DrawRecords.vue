@@ -39,7 +39,9 @@ async function loadDrawRecords() {
     if (filterPoolId.value) params.pool_id = filterPoolId.value
     const res = await api.get('/admin/draws', { params })
     records.value = res.data
-  } catch (_) {}
+  } catch (e) {
+    console.error('Failed to load draw records:', e)
+  }
   finally { loading.value = false }
 }
 
@@ -47,7 +49,9 @@ async function loadPools() {
   try {
     const res = await api.get('/pools')
     pools.value = res.data
-  } catch (_) {}
+  } catch (e) {
+    console.error('Failed to load pools:', e)
+  }
 }
 
 onMounted(async () => {

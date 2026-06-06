@@ -17,7 +17,9 @@ async function loadPayments() {
   try {
     const res = await api.get('/payments/list', { params: { status: 'pending' } })
     payments.value = res.data
-  } catch (_) {}
+  } catch (e) {
+    console.error('Failed to load payments:', e)
+  }
   finally { loading.value = false }
 }
 
@@ -103,12 +105,20 @@ onMounted(() => {
       if (['payment_confirmed', 'payment_cancelled', 'payment_created'].includes(event)) {
         loadPayments()
       }
-    } catch (_) {}
+    } catch (e) {
+      console.error('EventSource message parse error:', e)
+    }
+  }
+  eventSource.onerror = () => {
+    console.warn('EventSource connection error, will auto-reconnect')
   }
 })
 onUnmounted(() => {
   stopScanner()
-  if (eventSource) eventSource.close()
+  if (eventSource) {
+    eventSource.close()
+    eventSource = null
+  }
 })
 </script>
 

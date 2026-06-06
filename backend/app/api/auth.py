@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_admin
+from app.limiter import limiter
 from app.models.admin import Admin
 from app.schemas.admin import (
     AdminLogin,
@@ -27,7 +29,8 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: AdminLogin, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: Request, body: AdminLogin, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Admin).where(Admin.email == body.email))
     admin = result.scalar_one_or_none()
     if not admin or not verify_password(body.password, admin.hashed_password):
@@ -42,7 +45,8 @@ async def login(body: AdminLogin, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/verify-otp", response_model=TokenResponse)
-async def verify_otp_login(body: AdminOTPVerify, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def verify_otp_login(request: Request, body: AdminOTPVerify, db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Admin).where(Admin.email == body.email))
     admin = result.scalar_one_or_none()
     if not admin or not admin.otp_secret:

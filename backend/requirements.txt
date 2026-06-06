@@ -13,3 +13,4 @@ qrcode[pil]==7.4.2
 python-multipart==0.0.18
 httpx==0.28.1
 cloudinary==1.41.0
+slowapi==0.1.9

@@ -44,6 +44,29 @@ class TokenResponse(BaseModel):
 
 # ---- Admin Draw Records ----
 
+class AdminCreate(BaseModel):
+    email: str
+    password: str
+    display_name: str = "Admin"
+
+
+class AdminUpdate(BaseModel):
+    email: Optional[str] = None
+    display_name: Optional[str] = None
+    password: Optional[str] = None
+
+
+class AdminListResponse(BaseModel):
+    id: str
+    email: str
+    display_name: str
+    is_otp_enabled: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class DrawRecordResponse(BaseModel):
     drawn_at: Optional[datetime] = None
     pool_name: str
