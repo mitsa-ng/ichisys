@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import delete as sa_delete, select, func, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -76,50 +77,59 @@ async def create_pool(
             detail="At least 2 prize grades are required",
         )
 
-    pool_code = generate_pool_code()
-    total = sum(item.stock for g in body.prize_grades for item in g.prize_items)
+    try:
+        pool_code = generate_pool_code()
+        total = sum(item.stock for g in body.prize_grades for item in g.prize_items)
 
-    pool = Pool(
-        code=pool_code,
-        name=body.name,
-        banner_image=body.banner_image,
-        single_price=body.single_price,
-        payment_methods=body.payment_methods,
-        allow_shipping=body.allow_shipping,
-        shipping_fee=body.shipping_fee,
-        free_shipping_threshold=body.free_shipping_threshold,
-        status="draft",
-        total_tickets=total,
-        remaining_tickets=total,
-    )
-    db.add(pool)
-    await db.flush()
-
-    for i, g in enumerate(body.prize_grades):
-        grade = PrizeGrade(
-            code=generate_grade_code(),
-            pool_id=pool.id,
-            grade_name=g.grade_name,
-            sort_order=g.sort_order or i,
+        pool = Pool(
+            code=pool_code,
+            name=body.name,
+            banner_image=body.banner_image,
+            single_price=body.single_price,
+            payment_methods=body.payment_methods,
+            allow_shipping=body.allow_shipping,
+            shipping_fee=body.shipping_fee,
+            free_shipping_threshold=body.free_shipping_threshold,
+            status="draft",
+            total_tickets=total,
+            remaining_tickets=total,
         )
-        db.add(grade)
+        db.add(pool)
         await db.flush()
 
-        for item in g.prize_items:
-            pi = PrizeItem(
-                prize_grade_id=grade.id,
-                name=item.name,
-                stock=item.stock,
-                remaining_stock=item.stock,
-                category=item.category,
-                cost=item.cost,
-                market_price=item.market_price,
-                image_url=item.image_url,
-                sort_order=item.sort_order,
+        for i, g in enumerate(body.prize_grades):
+            grade_stock = sum(item.stock for item in g.prize_items)
+            grade = PrizeGrade(
+                code=generate_grade_code(),
+                pool_id=pool.id,
+                grade_name=g.grade_name,
+                sort_order=g.sort_order or i,
+                remaining_stock=grade_stock,
             )
-            db.add(pi)
+            db.add(grade)
+            await db.flush()
 
-    await db.commit()
+            for item in g.prize_items:
+                pi = PrizeItem(
+                    prize_grade_id=grade.id,
+                    name=item.name,
+                    stock=item.stock,
+                    remaining_stock=item.stock,
+                    category=item.category,
+                    cost=item.cost,
+                    market_price=item.market_price,
+                    image_url=item.image_url,
+                    sort_order=item.sort_order,
+                )
+                db.add(pi)
+
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="獎池代碼重複，請重新試一次",
+        )
 
     result = await db.execute(
         select(Pool)
@@ -189,16 +199,18 @@ async def update_pool(
             total = 0
             new_grades = []
             for i, g in enumerate(prize_grades_data):
+                items_data = g.get("prize_items", [])
+                grade_stock = sum(item["stock"] for item in items_data)
                 grade = PrizeGrade(
                     code=generate_grade_code(),
                     pool_id=pool.id,
                     grade_name=g["grade_name"],
-                    sort_order=g.get("sort_order", i),
+                    sort_order=g.get("sort_order") if g.get("sort_order") is not None else i,
+                    remaining_stock=grade_stock,
                 )
                 db.add(grade)
                 await db.flush()
 
-                items_data = g.get("prize_items", [])
                 for item in items_data:
                     pi = PrizeItem(
                         prize_grade_id=grade.id,

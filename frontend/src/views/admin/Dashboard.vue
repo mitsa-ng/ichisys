@@ -271,7 +271,7 @@ async function deleteAdmin(id) {
     <div v-if="activeTab === 'pools'">
       <div class="flex justify-between items-center mb-4">
         <h2 class="text-lg font-semibold text-gray-900">獎池列表</h2>
-        <a href="/admin/pools/new" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700">新增獎池</a>
+        <button @click="router.push('/admin/pools/new')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 cursor-pointer">新增獎池</button>
       </div>
 
       <div v-if="loading" class="text-gray-500">載入中...</div>
