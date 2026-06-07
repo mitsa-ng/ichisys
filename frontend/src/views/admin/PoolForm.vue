@@ -67,6 +67,7 @@ const form = ref({
   shipping_fee: 60,
   free_shipping_threshold: 2000,
   payment_methods: ['onsite', 'linepay', 'draw_now'],
+  total_tickets: null,
   grades: [
     { prize_items: [{ name: '', stock: 1, category: '卡牌', cost: 300, market_price: 1200, image_url: '' }] },
     { prize_items: [{ name: '', stock: 8, category: '卡牌', cost: 150, market_price: 600, image_url: '' }] },
@@ -75,8 +76,18 @@ const form = ref({
 
 const error = ref('')
 
-const totalTickets = computed(() =>
+const stockTotal = computed(() =>
   form.value.grades.reduce((s, g) => s + g.prize_items.reduce((si, item) => si + (Number(item.stock) || 0), 0), 0)
+)
+
+const effectiveTotalTickets = computed(() =>
+  form.value.total_tickets != null ? Number(form.value.total_tickets) : stockTotal.value
+)
+
+const ticketWarning = computed(() =>
+  form.value.total_tickets != null && effectiveTotalTickets.value > stockTotal.value
+    ? `總抽數 (${effectiveTotalTickets.value}) 大於獎品總庫存 (${stockTotal.value})，超出部分將成為無對應獎品的抽獎券`
+    : ''
 )
 
 const distributionValid = computed(() => {
@@ -135,6 +146,7 @@ async function submit() {
       name: form.value.name,
       banner_image: form.value.banner_image || null,
       single_price: form.value.single_price,
+      total_tickets: form.value.total_tickets || null,
       payment_methods: form.value.payment_methods.join(','),
       allow_shipping: form.value.allow_shipping,
       shipping_fee: form.value.shipping_fee,
@@ -293,9 +305,17 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="mt-4 flex items-center gap-4 text-sm">
-          <span class="text-gray-500">總抽數：<strong class="text-gray-900">{{ totalTickets }}</strong></span>
-          <span v-if="totalTickets === 0" class="text-red-500">請設定至少 1 張獎券</span>
+        <div class="mt-4 space-y-2 text-sm">
+          <div class="flex items-center gap-3">
+            <span class="text-gray-500">獎品總庫存：<strong class="text-gray-900">{{ stockTotal }}</strong></span>
+            <span v-if="stockTotal === 0" class="text-red-500">請設定至少 1 張獎券</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <label class="text-gray-500 whitespace-nowrap">總抽數設定：</label>
+            <input v-model.number="form.total_tickets" type="number" min="1" placeholder="留空則等同獎品總庫存" class="w-40 border rounded-lg px-2 py-1.5" />
+            <span v-if="form.total_tickets" class="text-gray-500">→ <strong class="text-gray-900">{{ effectiveTotalTickets }}</strong> 張</span>
+          </div>
+          <div v-if="ticketWarning" class="bg-amber-50 text-amber-700 p-3 rounded-lg">{{ ticketWarning }}</div>
         </div>
       </div>
 

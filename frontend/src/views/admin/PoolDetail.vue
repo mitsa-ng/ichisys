@@ -80,6 +80,7 @@ const editForm = ref({
   name: '',
   banner_image: '',
   single_price: 0,
+  total_tickets: null,
   allow_shipping: true,
   shipping_fee: 0,
   free_shipping_threshold: 0,
@@ -123,6 +124,7 @@ function startEdit() {
     name: p.name,
     banner_image: p.banner_image || '',
     single_price: p.single_price,
+    total_tickets: p.total_tickets,
     allow_shipping: p.allow_shipping,
     shipping_fee: p.shipping_fee,
     free_shipping_threshold: p.free_shipping_threshold,
@@ -185,6 +187,7 @@ async function saveEdit() {
         name: editForm.value.name,
         banner_image: editForm.value.banner_image || null,
         single_price: editForm.value.single_price,
+        total_tickets: editForm.value.total_tickets || null,
         allow_shipping: editForm.value.allow_shipping,
         shipping_fee: editForm.value.shipping_fee,
         free_shipping_threshold: editForm.value.free_shipping_threshold,
@@ -210,6 +213,7 @@ async function saveEdit() {
         name: editForm.value.name,
         banner_image: editForm.value.banner_image || null,
         single_price: editForm.value.single_price,
+        total_tickets: editForm.value.total_tickets || null,
         allow_shipping: editForm.value.allow_shipping,
         shipping_fee: editForm.value.shipping_fee,
         free_shipping_threshold: editForm.value.free_shipping_threshold,
@@ -288,8 +292,18 @@ function removeItem(gradeIndex, itemIndex) {
   editForm.value.grades[gradeIndex].prize_items.splice(itemIndex, 1)
 }
 
-const totalTickets = computed(() =>
+const stockTotal = computed(() =>
   editForm.value.grades.reduce((s, g) => s + g.prize_items.reduce((si, item) => si + (Number(item.stock) || 0), 0), 0)
+)
+
+const effectiveTotalTickets = computed(() =>
+  editForm.value.total_tickets != null ? Number(editForm.value.total_tickets) : stockTotal.value
+)
+
+const ticketWarning = computed(() =>
+  editForm.value.total_tickets != null && effectiveTotalTickets.value > stockTotal.value
+    ? `總抽數 (${effectiveTotalTickets.value}) 大於獎品總庫存 (${stockTotal.value})，超出部分將成為無對應獎品的抽獎券`
+    : ''
 )
 
 const isDraft = computed(() => pool.value?.status === 'draft')
@@ -438,7 +452,15 @@ const isDraft = computed(() => pool.value?.status === 'draft')
             </div>
           </div>
         </div>
-        <p class="text-sm text-gray-500 mt-2">總抽數：<strong>{{ totalTickets }}</strong></p>
+        <div class="mt-3 space-y-1 text-sm">
+          <p class="text-gray-500">獎品總庫存：<strong>{{ stockTotal }}</strong></p>
+          <div class="flex items-center gap-3">
+            <label class="text-gray-500 whitespace-nowrap">總抽數設定：</label>
+            <input v-model.number="editForm.total_tickets" type="number" min="1" placeholder="留空則等同獎品總庫存" class="w-40 border rounded-lg px-2 py-1.5" />
+            <span v-if="editForm.total_tickets" class="text-gray-500">→ <strong class="text-gray-900">{{ effectiveTotalTickets }}</strong> 張</span>
+          </div>
+          <p v-if="ticketWarning" class="bg-amber-50 text-amber-700 p-3 rounded-lg">{{ ticketWarning }}</p>
+        </div>
       </div>
 
       <!-- Payment Methods -->

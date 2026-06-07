@@ -49,6 +49,7 @@ class PoolCreate(BaseModel):
     shipping_fee: int = 0
     free_shipping_threshold: int = 0
     payment_methods: str = "onsite,linepay,draw_now"
+    total_tickets: Optional[int] = None
     prize_grades: list[PrizeGradeCreate]
 
     @field_validator("name")
@@ -108,6 +109,7 @@ class PoolUpdateWithGrades(BaseModel):
     shipping_fee: Optional[int] = None
     free_shipping_threshold: Optional[int] = None
     payment_methods: Optional[str] = None
+    total_tickets: Optional[int] = None
     prize_grades: Optional[list[PrizeGradeCreate]] = None
 
 

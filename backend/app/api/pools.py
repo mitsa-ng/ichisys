@@ -79,7 +79,8 @@ async def create_pool(
 
     try:
         pool_code = generate_pool_code()
-        total = sum(item.stock for g in body.prize_grades for item in g.prize_items)
+        stock_total = sum(item.stock for g in body.prize_grades for item in g.prize_items)
+        total = body.total_tickets if body.total_tickets is not None else stock_total
 
         pool = Pool(
             code=pool_code,
@@ -178,6 +179,7 @@ async def update_pool(
 
     update_data = body.model_dump(exclude_unset=True)
     prize_grades_data = update_data.pop("prize_grades", None)
+    explicit_total = update_data.pop("total_tickets", None)
 
     if prize_grades_data is not None and pool.status != "draft":
         raise HTTPException(
@@ -227,9 +229,21 @@ async def update_pool(
                     total += item["stock"]
 
                 new_grades.append(grade)
-            pool.total_tickets = total
-            pool.remaining_tickets = total
+            new_total = explicit_total if explicit_total is not None else total
+            delta = new_total - pool.total_tickets
+            pool.total_tickets = new_total
+            if pool.status == "draft":
+                pool.remaining_tickets = new_total
+            else:
+                pool.remaining_tickets = max(0, pool.remaining_tickets + delta)
         pool.prize_grades = new_grades
+    elif explicit_total is not None:
+        delta = explicit_total - pool.total_tickets
+        pool.total_tickets = explicit_total
+        if pool.status == "draft":
+            pool.remaining_tickets = explicit_total
+        else:
+            pool.remaining_tickets = max(0, pool.remaining_tickets + delta)
 
     await db.commit()
     await db.refresh(pool)
@@ -321,8 +335,8 @@ async def shuffle_pool(
     )
 
     grades = pool.prize_grades
-    total = sum(item.stock for g in grades for item in g.prize_items)
-    ticket_plan = build_ticket_plan(pool, grades)
+    total = pool.total_tickets
+    ticket_plan = build_ticket_plan(pool, grades, total)
 
     new_tickets = [Ticket(**t) for t in ticket_plan]
     for t in new_tickets:
@@ -358,8 +372,8 @@ async def publish_pool(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Pool is not in draft status")
 
     grades = pool.prize_grades
-    total = sum(item.stock for g in grades for item in g.prize_items)
-    ticket_plan = build_ticket_plan(pool, grades)
+    total = pool.total_tickets
+    ticket_plan = build_ticket_plan(pool, grades, total)
 
     new_tickets = [Ticket(**t) for t in ticket_plan]
     for t in new_tickets:

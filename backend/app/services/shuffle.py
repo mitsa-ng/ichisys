@@ -6,19 +6,16 @@ if TYPE_CHECKING:
     from app.models.prize_grade import PrizeGrade
 
 
-def build_ticket_plan(pool: "Pool", prize_grades: list["PrizeGrade"]) -> list[dict]:
-    """
-    Build a flat list of ticket payloads based on PrizeItem remaining_stock,
-    then shuffle them randomly (Fisher-Yates).
-    Each ticket maps to a serial_number, prize_grade_id, and prize_item_id.
-    """
+def build_ticket_plan(pool: "Pool", prize_grades: list["PrizeGrade"], total_tickets: int) -> list[dict]:
     ticket_plan: list[dict] = []
 
+    stock_total = 0
     for grade in prize_grades:
         grade.remaining_stock = 0
         for item in grade.prize_items:
             item.remaining_stock = item.stock
             grade.remaining_stock += item.stock
+            stock_total += item.stock
             for _ in range(item.stock):
                 ticket_plan.append({
                     "pool_id": pool.id,
@@ -27,6 +24,17 @@ def build_ticket_plan(pool: "Pool", prize_grades: list["PrizeGrade"]) -> list[di
                     "serial_number": 0,
                     "is_drawn": False,
                 })
+
+    extra = total_tickets - stock_total
+    if extra > 0 and prize_grades:
+        for _ in range(extra):
+            ticket_plan.append({
+                "pool_id": pool.id,
+                "prize_grade_id": random.choice(prize_grades).id,
+                "prize_item_id": None,
+                "serial_number": 0,
+                "is_drawn": False,
+            })
 
     random.shuffle(ticket_plan)
 
