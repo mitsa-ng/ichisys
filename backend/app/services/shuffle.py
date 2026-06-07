@@ -42,13 +42,18 @@ def build_ticket_plan(pool: "Pool", prize_grades: list["PrizeGrade"], total_tick
     extra = total_tickets - len(ticket_pool)
     if extra > 0 and prize_grades:
         for _ in range(extra):
+            gid = random.choice(prize_grades).id
             ticket_plan.append({
                 "pool_id": pool.id,
-                "prize_grade_id": random.choice(prize_grades).id,
+                "prize_grade_id": gid,
                 "prize_item_id": None,
                 "serial_number": 0,
                 "is_drawn": False,
             })
+            for grade in prize_grades:
+                if grade.id == gid:
+                    grade.remaining_stock += 1
+                    break
 
     random.shuffle(ticket_plan)
 

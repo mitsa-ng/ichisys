@@ -248,19 +248,21 @@ async def update_pool(
                     select(func.max(Ticket.serial_number)).where(Ticket.pool_id == pool_id)
                 )
                 grades_result = await db.execute(
-                    select(PrizeGrade.id).where(PrizeGrade.pool_id == pool_id)
+                    select(PrizeGrade).where(PrizeGrade.pool_id == pool_id)
                 )
-                grade_ids = grades_result.scalars().all()
+                grade_list = grades_result.scalars().all()
                 start_serial = (max_serial.scalar() or 0) + 1
                 for sn in range(start_serial, start_serial + delta):
-                    gid = random.choice(grade_ids) if grade_ids else None
+                    grade = random.choice(grade_list) if grade_list else None
                     db.add(Ticket(
                         pool_id=pool.id,
-                        prize_grade_id=gid,
+                        prize_grade_id=grade.id if grade else None,
                         prize_item_id=None,
                         serial_number=sn,
                         is_drawn=False,
                     ))
+                    if grade:
+                        grade.remaining_stock += 1
                 pool.remaining_tickets += delta
                 if pool.status == "sold_out":
                     pool.status = "published"
@@ -278,6 +280,22 @@ async def update_pool(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"無法減少總抽數：超過 {explicit_total} 號的獎券已有被抽出的記錄",
                     )
+                tickets_to_remove = await db.execute(
+                    select(Ticket.prize_grade_id).where(
+                        Ticket.pool_id == pool_id,
+                        Ticket.serial_number > explicit_total,
+                    )
+                )
+                grade_counts: dict[str, int] = {}
+                for (gid,) in tickets_to_remove:
+                    if gid:
+                        grade_counts[gid] = grade_counts.get(gid, 0) + 1
+                if grade_counts:
+                    grades_q = await db.execute(
+                        select(PrizeGrade).where(PrizeGrade.id.in_(list(grade_counts.keys())))
+                    )
+                    for g in grades_q.scalars().all():
+                        g.remaining_stock = max(0, g.remaining_stock - grade_counts[g.id])
                 await db.execute(
                     sa_delete(Ticket).where(
                         Ticket.pool_id == pool_id,

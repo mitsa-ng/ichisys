@@ -118,9 +118,10 @@ async def draw_tickets(pool_id: str, body: DrawRequest, db: AsyncSession = Depen
         prize_item = items_map.get(ticket.prize_item_id) if ticket.prize_item_id else None
         if prize_item:
             prize_item.remaining_stock = max(0, prize_item.remaining_stock - 1)
-            grade = grades_map.get(ticket.prize_grade_id) if ticket.prize_grade_id else None
-            if grade:
-                grade.remaining_stock = max(0, grade.remaining_stock - 1)
+
+        grade = grades_map.get(ticket.prize_grade_id) if ticket.prize_grade_id else None
+        if grade:
+            grade.remaining_stock = max(0, grade.remaining_stock - 1)
 
         warehouse = VirtualWarehouse(
             ticket_id=ticket.id,
