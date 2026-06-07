@@ -250,12 +250,12 @@ function closeResult() {
           :key="g.id"
           class="border rounded-lg p-3 text-center"
         >
-          <div class="text-sm font-bold text-gray-900 mb-1">{{ g.grade_name }}</div>
           <div v-if="g.prize_items?.length" class="mb-2">
             <img v-if="g.prize_items[0]?.image_url" :src="g.prize_items[0].image_url" class="w-16 h-16 object-cover rounded mx-auto" />
           </div>
-          <div class="text-xs text-gray-500">{{ g.prize_items?.[0]?.name || '' }}</div>
-          <div class="text-xs text-gray-400 mt-1">剩 {{ g.remaining_stock }} 張</div>
+          <div class="text-sm font-bold text-gray-900 mb-1">{{ g.grade_name }}</div>
+          <div class="text-xs text-gray-500">類別：{{ g.prize_items?.[0]?.category || '—' }}</div>
+          <div class="text-xs text-gray-400 mt-0.5">{{ g.grade_name }}配置總數：{{ g.prize_items?.reduce((s, item) => s + item.stock, 0) || 0 }}</div>
         </div>
       </div>
     </div>
