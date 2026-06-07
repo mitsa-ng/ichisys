@@ -132,6 +132,7 @@ class PrizeGradeResponse(BaseModel):
     pool_id: str
     grade_name: str
     sort_order: int
+    remaining_stock: int = 0
     prize_items: list[PrizeItemResponse] = []
 
     class Config:
