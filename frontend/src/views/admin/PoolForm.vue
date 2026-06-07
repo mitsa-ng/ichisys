@@ -7,6 +7,7 @@ import ImageUploader from '../../components/ImageUploader.vue'
 const router = useRouter()
 
 const loading = ref(false)
+const saving = ref(false)
 let idleStart = null
 const IDLE_THRESHOLD = 30000
 
@@ -97,20 +98,25 @@ function formatError(e) {
 }
 
 async function submit() {
+  if (saving.value) return
+  saving.value = true
   error.value = ''
   if (form.value.payment_methods.length === 0) {
     error.value = '至少需要選擇一種付款方式'
+    saving.value = false
     return
   }
   for (let i = 0; i < form.value.grades.length; i++) {
     const items = form.value.grades[i].prize_items
     if (items.length === 0) {
       error.value = `${gradeName(i)} 至少需要一個子獎項`
+      saving.value = false
       return
     }
     for (const item of items) {
       if (!item.name) {
         error.value = `${gradeName(i)} 下有未填寫名稱的子獎項`
+        saving.value = false
         return
       }
     }
@@ -142,6 +148,7 @@ async function submit() {
     router.push(`/admin/pools/${res.data.id}`)
   } catch (e) {
     error.value = formatError(e)
+    saving.value = false
   }
 }
 
@@ -312,7 +319,13 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <button type="submit" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700">建立獎池</button>
+      <button type="submit" :disabled="saving" class="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
+  <span v-if="saving" class="inline-flex items-center gap-2">
+    <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+    建立中...
+  </span>
+  <span v-else>建立獎池</span>
+</button>
     </form>
   </div>
 </template>

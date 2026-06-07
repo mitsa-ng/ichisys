@@ -146,13 +146,19 @@ function logout() {
   router.push('/admin/login')
 }
 
+const deletingPoolId = ref(null)
+
 async function deletePool(id, name) {
+  if (deletingPoolId.value) return
   if (!confirm(`確定要刪除獎池「${name}」？此操作不可恢復。`)) return
+  deletingPoolId.value = id
   try {
     await api.delete(`/pools/${id}`)
     pools.value = pools.value.filter(p => p.id !== id)
   } catch (e) {
     alert(e.response?.data?.detail || '刪除失敗')
+  } finally {
+    deletingPoolId.value = null
   }
 }
 
@@ -308,7 +314,13 @@ async function deleteAdmin(id) {
               <td class="px-4 py-3 text-right text-gray-600">{{ pool.remaining_tickets }} / {{ pool.total_tickets }}</td>
               <td class="px-4 py-3 text-right flex items-center justify-end gap-2">
                 <a :href="`/admin/pools/${pool.id}`" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">管理</a>
-                <button @click="deletePool(pool.id, pool.name)" class="text-red-500 hover:text-red-700 text-xs font-medium">刪除</button>
+                <button @click="deletePool(pool.id, pool.name)" :disabled="deletingPoolId === pool.id" class="text-red-500 hover:text-red-700 text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed">
+  <span v-if="deletingPoolId === pool.id" class="inline-flex items-center gap-1">
+    <svg class="animate-spin h-3 w-3" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+    刪除中
+  </span>
+  <span v-else>刪除</span>
+</button>
               </td>
             </tr>
           </tbody>

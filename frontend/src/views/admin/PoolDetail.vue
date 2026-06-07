@@ -63,6 +63,9 @@ function onVisibilityChange() {
 
 const editing = ref(false)
 const saving = ref(false)
+const deleting = ref(false)
+const publishing = ref(false)
+const shuffling = ref(false)
 
 const editForm = ref({
   name: '',
@@ -202,34 +205,45 @@ async function saveEdit() {
 }
 
 async function deletePool() {
+  if (deleting.value) return
   if (!confirm('確定要刪除此獎池？此操作不可恢復。')) return
+  deleting.value = true
   try {
     await api.delete(`/pools/${route.params.id}`)
     router.push('/admin')
   } catch (e) {
     alert(e.response?.data?.detail || '刪除失敗')
+    deleting.value = false
   }
 }
 
 async function publishPool() {
+  if (publishing.value) return
   if (!confirm('確定要上架此獎池？將自動進行洗牌並開放抽獎。')) return
+  publishing.value = true
   try {
     await api.post(`/pools/${route.params.id}/publish`)
     const res = await api.get(`/pools/${route.params.id}`)
     pool.value = res.data
   } catch (e) {
     alert(e.response?.data?.detail || '上架失敗')
+  } finally {
+    publishing.value = false
   }
 }
 
 async function shufflePool() {
+  if (shuffling.value) return
   if (!confirm('確定要重新洗牌？這將重置所有抽獎券。')) return
+  shuffling.value = true
   try {
     await api.post(`/pools/${route.params.id}/shuffle`)
     const res = await api.get(`/pools/${route.params.id}`)
     pool.value = res.data
   } catch (e) {
     alert(e.response?.data?.detail || '洗牌失敗')
+  } finally {
+    shuffling.value = false
   }
 }
 
@@ -286,9 +300,14 @@ const isDraft = computed(() => pool.value?.status === 'draft')
         </button>
         <button
           @click="deletePool"
-          class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700"
+          :disabled="deleting"
+          class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          刪除
+          <span v-if="deleting" class="inline-flex items-center gap-1">
+            <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+            刪除中...
+          </span>
+          <span v-else>刪除</span>
         </button>
       </div>
     </div>
@@ -484,16 +503,26 @@ const isDraft = computed(() => pool.value?.status === 'draft')
       <button
         v-if="isDraft"
         @click="publishPool"
-        class="bg-green-600 text-white px-6 py-2.5 rounded-lg font-semibold text-sm hover:bg-green-700"
+        :disabled="publishing"
+        class="bg-green-600 text-white px-6 py-2.5 rounded-lg font-semibold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        上架並洗牌
+        <span v-if="publishing" class="inline-flex items-center gap-2">
+          <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+          上架中...
+        </span>
+        <span v-else>上架並洗牌</span>
       </button>
       <button
         v-if="pool.status === 'published'"
         @click="shufflePool"
-        class="bg-orange-600 text-white px-6 py-2.5 rounded-lg font-semibold text-sm hover:bg-orange-700"
+        :disabled="shuffling"
+        class="bg-orange-600 text-white px-6 py-2.5 rounded-lg font-semibold text-sm hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        重新洗牌
+        <span v-if="shuffling" class="inline-flex items-center gap-2">
+          <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+          洗牌中...
+        </span>
+        <span v-else>重新洗牌</span>
       </button>
     </div>
   </div>
