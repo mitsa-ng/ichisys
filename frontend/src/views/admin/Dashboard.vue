@@ -151,6 +151,11 @@ const deletingPoolId = ref(null)
 
 const categories = ref([])
 const newCategoryName = ref('')
+const categoryError = ref('')
+
+function clearCategoryError() {
+  setTimeout(() => { categoryError.value = '' }, 3000)
+}
 
 async function loadCategories() {
   try {
@@ -164,22 +169,25 @@ async function loadCategories() {
 async function addCategory() {
   const name = newCategoryName.value.trim()
   if (!name) return
+  categoryError.value = ''
   try {
     await api.post('/categories', { name, sort_order: categories.value.length })
     newCategoryName.value = ''
     await loadCategories()
   } catch (e) {
-    alert(e.response?.data?.detail || '新增失敗')
+    categoryError.value = e.response?.data?.detail || '新增失敗'
+    clearCategoryError()
   }
 }
 
 async function deleteCategory(id) {
-  if (!confirm('確定要刪除此類別？')) return
+  categoryError.value = ''
   try {
     await api.delete(`/categories/${id}`)
     await loadCategories()
   } catch (e) {
-    alert(e.response?.data?.detail || '刪除失敗')
+    categoryError.value = e.response?.data?.detail || '刪除失敗'
+    clearCategoryError()
   }
 }
 
@@ -443,6 +451,7 @@ async function deleteAdmin(id) {
             class="flex-1 border rounded-lg px-3 py-2 text-sm" />
           <button @click="addCategory" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700">新增</button>
         </div>
+        <p v-if="categoryError" class="text-red-500 text-xs mt-2">{{ categoryError }}</p>
       </div>
       <div class="bg-white rounded-xl shadow-sm border overflow-hidden max-w-lg">
         <table class="w-full text-sm">

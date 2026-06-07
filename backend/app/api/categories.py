@@ -25,7 +25,7 @@ async def create_category(
 ):
     existing = await db.execute(select(Category).where(Category.name == body.name))
     if existing.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Category already exists")
+        raise HTTPException(status_code=400, detail="此類別名稱已存在")
     cat = Category(name=body.name, sort_order=body.sort_order)
     db.add(cat)
     await db.commit()
