@@ -191,8 +191,11 @@ async def update_pool(
         setattr(pool, key, value)
 
     if prize_grades_data is not None:
+        for old_grade in list(pool.prize_grades):
+            await db.delete(old_grade)
+        pool.prize_grades.clear()
+
         total = 0
-        new_grades = []
         for i, g in enumerate(prize_grades_data):
             items_data = g.get("prize_items", [])
             grade = PrizeGrade(
@@ -201,8 +204,12 @@ async def update_pool(
                 grade_name=g["grade_name"],
                 sort_order=g.get("sort_order") if g.get("sort_order") is not None else i,
             )
+            db.add(grade)
+            await db.flush()
+
             for item in items_data:
                 pi = PrizeItem(
+                    prize_grade_id=grade.id,
                     name=item["name"],
                     stock=item["stock"],
                     remaining_stock=item["stock"],
@@ -212,12 +219,11 @@ async def update_pool(
                     image_url=item.get("image_url"),
                     sort_order=item.get("sort_order", 0),
                 )
-                grade.prize_items.append(pi)
+                db.add(pi)
                 total += item["stock"]
-            grade.remaining_stock = sum(item["stock"] for item in items_data)
-            new_grades.append(grade)
 
-        pool.prize_grades = new_grades
+            grade.remaining_stock = sum(item["stock"] for item in items_data)
+
         new_total = explicit_total if explicit_total is not None else total
         delta = new_total - pool.total_tickets
         pool.total_tickets = new_total
@@ -234,7 +240,16 @@ async def update_pool(
             pool.remaining_tickets = max(0, pool.remaining_tickets + delta)
 
     await db.commit()
-    await db.refresh(pool)
+
+    result = await db.execute(
+        select(Pool)
+        .options(
+            selectinload(Pool.prize_grades).selectinload(PrizeGrade.prize_items)
+        )
+        .where(Pool.id == pool_id)
+    )
+    pool = result.scalar_one()
+
     await broadcast("pool_update", {"pool_id": pool.id, "status": pool.status, "remaining_tickets": pool.remaining_tickets})
     return PoolResponse.model_validate(pool)
 
