@@ -191,52 +191,40 @@ async def update_pool(
         setattr(pool, key, value)
 
     if prize_grades_data is not None:
-        async with db.begin_nested():
-            old_grade_ids = await db.execute(
-                select(PrizeGrade.id).where(PrizeGrade.pool_id == pool_id)
+        total = 0
+        new_grades = []
+        for i, g in enumerate(prize_grades_data):
+            items_data = g.get("prize_items", [])
+            grade = PrizeGrade(
+                code=generate_grade_code(),
+                pool_id=pool.id,
+                grade_name=g["grade_name"],
+                sort_order=g.get("sort_order") if g.get("sort_order") is not None else i,
             )
-            for gid in old_grade_ids.scalars().all():
-                await db.execute(sa_delete(PrizeItem).where(PrizeItem.prize_grade_id == gid))
-            await db.execute(sa_delete(PrizeGrade).where(PrizeGrade.pool_id == pool_id))
-            total = 0
-            new_grades = []
-            for i, g in enumerate(prize_grades_data):
-                items_data = g.get("prize_items", [])
-                grade_stock = sum(item["stock"] for item in items_data)
-                grade = PrizeGrade(
-                    code=generate_grade_code(),
-                    pool_id=pool.id,
-                    grade_name=g["grade_name"],
-                    sort_order=g.get("sort_order") if g.get("sort_order") is not None else i,
-                    remaining_stock=grade_stock,
+            for item in items_data:
+                pi = PrizeItem(
+                    name=item["name"],
+                    stock=item["stock"],
+                    remaining_stock=item["stock"],
+                    category=item.get("category", "卡牌"),
+                    cost=item.get("cost", 0),
+                    market_price=item.get("market_price", 0),
+                    image_url=item.get("image_url"),
+                    sort_order=item.get("sort_order", 0),
                 )
-                db.add(grade)
-                await db.flush()
+                grade.prize_items.append(pi)
+                total += item["stock"]
+            grade.remaining_stock = sum(item["stock"] for item in items_data)
+            new_grades.append(grade)
 
-                for item in items_data:
-                    pi = PrizeItem(
-                        prize_grade_id=grade.id,
-                        name=item["name"],
-                        stock=item["stock"],
-                        remaining_stock=item["stock"],
-                        category=item.get("category", "卡牌"),
-                        cost=item.get("cost", 0),
-                        market_price=item.get("market_price", 0),
-                        image_url=item.get("image_url"),
-                        sort_order=item.get("sort_order", 0),
-                    )
-                    db.add(pi)
-                    total += item["stock"]
-
-                new_grades.append(grade)
-            new_total = explicit_total if explicit_total is not None else total
-            delta = new_total - pool.total_tickets
-            pool.total_tickets = new_total
-            if pool.status == "draft":
-                pool.remaining_tickets = new_total
-            else:
-                pool.remaining_tickets = max(0, pool.remaining_tickets + delta)
         pool.prize_grades = new_grades
+        new_total = explicit_total if explicit_total is not None else total
+        delta = new_total - pool.total_tickets
+        pool.total_tickets = new_total
+        if pool.status == "draft":
+            pool.remaining_tickets = new_total
+        else:
+            pool.remaining_tickets = max(0, pool.remaining_tickets + delta)
     elif explicit_total is not None:
         delta = explicit_total - pool.total_tickets
         pool.total_tickets = explicit_total
