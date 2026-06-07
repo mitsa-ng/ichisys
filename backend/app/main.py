@@ -12,7 +12,7 @@ from sqlalchemy import text as sa_text
 from app.config import settings
 from app.database import init_db
 from app.limiter import limiter
-from app.api import admin, auth, pools, draw, warehouse, payments, events, setup, upload
+from app.api import admin, auth, pools, draw, warehouse, payments, events, setup, upload, categories
 
 
 @asynccontextmanager
@@ -44,6 +44,7 @@ app.include_router(warehouse.router)
 app.include_router(payments.router)
 app.include_router(events.router)
 app.include_router(upload.router)
+app.include_router(categories.router)
 os.makedirs(settings.upload_dir, exist_ok=True)
 app.mount("/api/files", StaticFiles(directory=settings.upload_dir), name="files")
 

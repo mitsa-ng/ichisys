@@ -11,8 +11,17 @@ const loading = ref(true)
 let idleStart = null
 const IDLE_THRESHOLD = 30000
 
-const categoryPresets = ['卡牌', '公仔', '吊飾', '徽章', '立牌', '海報', '其他']
+const categoryPresets = ref(['卡牌', '公仔', '吊飾', '徽章', '立牌', '海報', '其他'])
 const customCategoryItems = ref({})
+
+async function loadCategories() {
+  try {
+    const res = await api.get('/categories')
+    if (res.data?.length) {
+      categoryPresets.value = res.data.map(c => c.name)
+    }
+  } catch (_) {}
+}
 
 const GRADE_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
@@ -81,6 +90,7 @@ const editForm = ref({
 const error = ref('')
 
 onMounted(() => {
+  loadCategories()
   window.addEventListener('pageshow', onPageShow)
   document.addEventListener('visibilitychange', onVisibilityChange)
 })
@@ -133,7 +143,7 @@ function startEdit() {
   customCategoryItems.value = {}
   p.prize_grades?.forEach((g, gi) =>
     g.prize_items?.forEach((item, ii) => {
-      if (!categoryPresets.includes(item.category)) {
+      if (!categoryPresets.value.includes(item.category)) {
         customCategoryItems.value[gi + '-' + ii] = true
       }
     })

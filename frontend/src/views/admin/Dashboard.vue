@@ -122,6 +122,7 @@ onMounted(async () => {
 
 watch(activeTab, (tab) => {
   if (tab === 'admins') loadAdmins()
+  if (tab === 'categories') loadCategories()
 })
 
 function onPageShow(event) {
@@ -147,6 +148,40 @@ function logout() {
 }
 
 const deletingPoolId = ref(null)
+
+const categories = ref([])
+const newCategoryName = ref('')
+
+async function loadCategories() {
+  try {
+    const res = await api.get('/categories')
+    categories.value = res.data
+  } catch (e) {
+    console.error('Failed to load categories:', e)
+  }
+}
+
+async function addCategory() {
+  const name = newCategoryName.value.trim()
+  if (!name) return
+  try {
+    await api.post('/categories', { name, sort_order: categories.value.length })
+    newCategoryName.value = ''
+    await loadCategories()
+  } catch (e) {
+    alert(e.response?.data?.detail || '新增失敗')
+  }
+}
+
+async function deleteCategory(id) {
+  if (!confirm('確定要刪除此類別？')) return
+  try {
+    await api.delete(`/categories/${id}`)
+    await loadCategories()
+  } catch (e) {
+    alert(e.response?.data?.detail || '刪除失敗')
+  }
+}
 
 async function deletePool(id, name) {
   if (deletingPoolId.value) return
@@ -266,6 +301,11 @@ async function deleteAdmin(id) {
         class="pb-3 px-1 text-sm font-medium border-b-2 transition whitespace-nowrap"
         :class="activeTab === 'admins' ? 'text-indigo-600 border-indigo-600' : 'text-gray-500 border-transparent hover:text-gray-700'">
         管理員帳號
+      </button>
+      <button @click="activeTab = 'categories'"
+        class="pb-3 px-1 text-sm font-medium border-b-2 transition whitespace-nowrap"
+        :class="activeTab === 'categories' ? 'text-indigo-600 border-indigo-600' : 'text-gray-500 border-transparent hover:text-gray-700'">
+        類別管理
       </button>
       <button @click="activeTab = 'security'"
         class="pb-3 px-1 text-sm font-medium border-b-2 transition whitespace-nowrap"
@@ -389,6 +429,38 @@ async function deleteAdmin(id) {
                 <button v-if="a.id !== admin?.id" @click="deleteAdmin(a.id)" class="text-red-500 hover:text-red-700 text-xs font-medium">刪除</button>
                 <span v-else class="text-xs text-gray-400">目前帳號</span>
               </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div v-if="activeTab === 'categories'">
+      <h2 class="text-lg font-semibold text-gray-900 mb-4">類別管理</h2>
+      <div class="bg-white rounded-xl shadow-sm border p-4 mb-4 max-w-lg">
+        <div class="flex gap-2">
+          <input v-model="newCategoryName" @keyup.enter="addCategory" placeholder="新增類別名稱"
+            class="flex-1 border rounded-lg px-3 py-2 text-sm" />
+          <button @click="addCategory" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700">新增</button>
+        </div>
+      </div>
+      <div class="bg-white rounded-xl shadow-sm border overflow-hidden max-w-lg">
+        <table class="w-full text-sm">
+          <thead class="bg-gray-50 border-b">
+            <tr>
+              <th class="text-left px-4 py-3 font-medium text-gray-600">名稱</th>
+              <th class="text-right px-4 py-3 font-medium text-gray-600">操作</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y">
+            <tr v-for="cat in categories" :key="cat.id" class="hover:bg-gray-50">
+              <td class="px-4 py-3 text-gray-900">{{ cat.name }}</td>
+              <td class="px-4 py-3 text-right">
+                <button @click="deleteCategory(cat.id)" class="text-red-500 hover:text-red-700 text-xs font-medium">刪除</button>
+              </td>
+            </tr>
+            <tr v-if="categories.length === 0">
+              <td colspan="2" class="px-4 py-8 text-center text-gray-400">尚無類別</td>
             </tr>
           </tbody>
         </table>

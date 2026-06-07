@@ -27,5 +27,5 @@ async def get_db():
 
 async def init_db():
     async with engine.begin() as conn:
-        from app.models import admin, pool, prize_grade, prize_item, ticket, warehouse, payment  # noqa
+        from app.models import admin, pool, prize_grade, prize_item, ticket, warehouse, payment, category  # noqa
         await conn.run_sync(Base.metadata.create_all)
