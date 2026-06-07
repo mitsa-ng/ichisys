@@ -7,17 +7,14 @@ if TYPE_CHECKING:
 
 
 def build_ticket_plan(pool: "Pool", prize_grades: list["PrizeGrade"], total_tickets: int) -> list[dict]:
-    ticket_plan: list[dict] = []
+    ticket_pool: list[dict] = []
 
-    stock_total = 0
     for grade in prize_grades:
         grade.remaining_stock = 0
         for item in grade.prize_items:
-            item.remaining_stock = item.stock
-            grade.remaining_stock += item.stock
-            stock_total += item.stock
+            item.remaining_stock = 0
             for _ in range(item.stock):
-                ticket_plan.append({
+                ticket_pool.append({
                     "pool_id": pool.id,
                     "prize_grade_id": grade.id,
                     "prize_item_id": item.id,
@@ -25,7 +22,24 @@ def build_ticket_plan(pool: "Pool", prize_grades: list["PrizeGrade"], total_tick
                     "is_drawn": False,
                 })
 
-    extra = total_tickets - stock_total
+    random.shuffle(ticket_pool)
+
+    ticket_plan = ticket_pool[:total_tickets]
+
+    for ticket in ticket_plan:
+        gid = ticket["prize_grade_id"]
+        iid = ticket["prize_item_id"]
+        for grade in prize_grades:
+            if grade.id == gid:
+                grade.remaining_stock += 1
+                if iid:
+                    for item in grade.prize_items:
+                        if item.id == iid:
+                            item.remaining_stock += 1
+                            break
+                break
+
+    extra = total_tickets - len(ticket_pool)
     if extra > 0 and prize_grades:
         for _ in range(extra):
             ticket_plan.append({
