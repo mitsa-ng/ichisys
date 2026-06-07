@@ -1,3 +1,5 @@
+import random
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import delete as sa_delete, select, func, update
 from sqlalchemy.exc import IntegrityError
@@ -236,8 +238,53 @@ async def update_pool(
         pool.total_tickets = explicit_total
         if pool.status == "draft":
             pool.remaining_tickets = explicit_total
-        else:
-            pool.remaining_tickets = max(0, pool.remaining_tickets + delta)
+        elif pool.status in ("published", "sold_out"):
+            existing_tickets = await db.execute(
+                select(func.count()).select_from(Ticket).where(Ticket.pool_id == pool_id)
+            )
+            ticket_count = existing_tickets.scalar()
+            if delta > 0:
+                max_serial = await db.execute(
+                    select(func.max(Ticket.serial_number)).where(Ticket.pool_id == pool_id)
+                )
+                grades_result = await db.execute(
+                    select(PrizeGrade.id).where(PrizeGrade.pool_id == pool_id)
+                )
+                grade_ids = grades_result.scalars().all()
+                start_serial = (max_serial.scalar() or 0) + 1
+                for sn in range(start_serial, start_serial + delta):
+                    gid = random.choice(grade_ids) if grade_ids else None
+                    db.add(Ticket(
+                        pool_id=pool.id,
+                        prize_grade_id=gid,
+                        prize_item_id=None,
+                        serial_number=sn,
+                        is_drawn=False,
+                    ))
+                pool.remaining_tickets += delta
+                if pool.status == "sold_out":
+                    pool.status = "published"
+            elif delta < 0:
+                remove_count = -delta
+                drawn_tickets = await db.execute(
+                    select(func.count()).select_from(Ticket).where(
+                        Ticket.pool_id == pool_id,
+                        Ticket.is_drawn == True,
+                        Ticket.serial_number > explicit_total,
+                    )
+                )
+                if drawn_tickets.scalar() > 0:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"無法減少總抽數：超過 {explicit_total} 號的獎券已有被抽出的記錄",
+                    )
+                await db.execute(
+                    sa_delete(Ticket).where(
+                        Ticket.pool_id == pool_id,
+                        Ticket.serial_number > explicit_total,
+                    )
+                )
+                pool.remaining_tickets = max(0, pool.remaining_tickets - remove_count)
 
     await db.commit()
 
