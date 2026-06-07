@@ -101,6 +101,12 @@ onUnmounted(() => {
   document.removeEventListener('visibilitychange', onVisibilityChange)
 })
 
+function onCategorySelect(event, gi, ii) {
+  if (event.target.value === '__custom__') {
+    customCategoryItems.value[gi + '-' + ii] = true
+  }
+}
+
 function startEdit() {
   const p = pool.value
   editForm.value = {
@@ -124,6 +130,14 @@ function startEdit() {
       })),
     })),
   }
+  customCategoryItems.value = {}
+  p.prize_grades?.forEach((g, gi) =>
+    g.prize_items?.forEach((item, ii) => {
+      if (!categoryPresets.includes(item.category)) {
+        customCategoryItems.value[gi + '-' + ii] = true
+      }
+    })
+  )
   error.value = ''
   editing.value = true
 }
@@ -385,12 +399,12 @@ const isDraft = computed(() => pool.value?.status === 'draft')
                 <div>
                   <label class="block text-xs text-gray-500 mb-1">類別</label>
                   <div class="flex gap-1">
-                    <select v-if="!customCategoryItems[gi + '-' + ii]" v-model="item.category" class="flex-1 border rounded-lg px-2 py-1.5 text-sm">
+                    <select v-if="!customCategoryItems[gi + '-' + ii]" v-model="item.category" class="flex-1 border rounded-lg px-2 py-1.5 text-sm" @change="onCategorySelect($event, gi, ii)">
                       <option v-for="cat in categoryPresets" :key="cat" :value="cat">{{ cat }}</option>
                       <option value="__custom__">自訂...</option>
                     </select>
                     <input v-else v-model="item.category" class="flex-1 border rounded-lg px-2 py-1.5 text-sm" placeholder="自訂類別" />
-                    <button type="button" @click="customCategoryItems[gi + '-' + ii] = !customCategoryItems[gi + '-' + ii]; if (customCategoryItems[gi + '-' + ii]) item.category = ''" class="text-xs text-indigo-500 whitespace-nowrap">
+                    <button type="button" @click="customCategoryItems[gi + '-' + ii] = !customCategoryItems[gi + '-' + ii]" class="text-xs text-indigo-500 whitespace-nowrap">
                       {{ customCategoryItems[gi + '-' + ii] ? '預設' : '自訂' }}
                     </button>
                   </div>

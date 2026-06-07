@@ -164,6 +164,12 @@ function addItem(gradeIndex) {
   form.value.grades[gradeIndex].prize_items.push({ name: '', stock: 1, category: '卡牌', cost: 0, market_price: 0, image_url: '' })
 }
 
+function onCategorySelect(event, gi, ii) {
+  if (event.target.value === '__custom__') {
+    customCategoryItems.value[gi + '-' + ii] = true
+  }
+}
+
 function removeItem(gradeIndex, itemIndex) {
   form.value.grades[gradeIndex].prize_items.splice(itemIndex, 1)
 }
@@ -242,12 +248,12 @@ onUnmounted(() => {
                   <div>
                     <label class="block text-xs text-gray-500 mb-1">類別</label>
                     <div class="flex gap-1">
-                      <select v-if="!customCategoryItems[gi + '-' + ii]" v-model="item.category" class="flex-1 border rounded-lg px-2 py-1.5 text-sm">
+                      <select v-if="!customCategoryItems[gi + '-' + ii]" v-model="item.category" class="flex-1 border rounded-lg px-2 py-1.5 text-sm" @change="onCategorySelect($event, gi, ii)">
                         <option v-for="cat in categoryPresets" :key="cat" :value="cat">{{ cat }}</option>
                         <option value="__custom__">自訂...</option>
                       </select>
                       <input v-else v-model="item.category" class="flex-1 border rounded-lg px-2 py-1.5 text-sm" placeholder="自訂類別" />
-                      <button type="button" @click="customCategoryItems[gi + '-' + ii] = !customCategoryItems[gi + '-' + ii]; if (customCategoryItems[gi + '-' + ii]) item.category = ''" class="text-xs text-indigo-500 whitespace-nowrap">
+                      <button type="button" @click="customCategoryItems[gi + '-' + ii] = !customCategoryItems[gi + '-' + ii]" class="text-xs text-indigo-500 whitespace-nowrap">
                         {{ customCategoryItems[gi + '-' + ii] ? '預設' : '自訂' }}
                       </button>
                     </div>
